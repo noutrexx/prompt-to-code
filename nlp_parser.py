@@ -133,11 +133,17 @@ class BISTRuleParser:
             )
         self.model = model
         self.client = genai.Client(api_key=self.api_key)
+        # Ayni metin tekrar gelirse Gemini'yi (ve kotayi) bos yere harcamamak icin onbellek.
+        self._cache: dict[str, TradingRule] = {}
 
-    def parse(self, text: str) -> TradingRule:
+    def parse(self, text: str, use_cache: bool = True) -> TradingRule:
         """Verilen Turkce metni yapilandirilmis bir TradingRule'a cevirir."""
         if not text or not text.strip():
             raise NLPParserError("Bos metin ayristirilamaz.")
+
+        key = text.strip().lower()
+        if use_cache and key in self._cache:
+            return self._cache[key]
 
         try:
             response = self.client.models.generate_content(
@@ -164,6 +170,8 @@ class BISTRuleParser:
                 raise NLPParserError(
                     f"Model ciktisi semaya uymuyor: {exc}\nHam cikti: {response.text}"
                 ) from exc
+
+        self._cache[key] = rule  # onbellege yaz
         return rule
 
     def parse_to_json(self, text: str, indent: int = 2) -> str:

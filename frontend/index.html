@@ -10,204 +10,355 @@
 
   <style>
     :root {
-      --bg: #0d1117;
-      --panel: #161b22;
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --accent: #2f81f7;
-      --green: #26a69a;
-      --red: #ef5350;
+      --bg: #0a0e17;
+      --bg-2: #0e1320;
+      --panel: rgba(22, 27, 40, 0.7);
+      --panel-solid: #161b28;
+      --border: rgba(120, 140, 180, 0.14);
+      --text: #e7edf6;
+      --muted: #8a96ac;
+      --accent: #5b8cff;
+      --accent-2: #7b5bff;
+      --green: #2ebd85;
+      --red: #f6465d;
+      --yellow: #f0b90b;
+      --purple: #b07bff;
+      --radius: 16px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
     body {
-      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
+      font-family: -apple-system, "Segoe UI", Inter, Roboto, system-ui, sans-serif;
       color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 15% -10%, rgba(91,140,255,0.10), transparent 60%),
+        radial-gradient(1000px 500px at 90% 0%, rgba(123,91,255,0.10), transparent 55%),
+        var(--bg);
       min-height: 100vh;
-      padding: 24px;
+      padding: 28px 20px 48px;
+      -webkit-font-smoothing: antialiased;
     }
-    .container { max-width: 1280px; margin: 0 auto; }
+    .container { max-width: 1340px; margin: 0 auto; }
 
-    header h1 { font-size: 20px; font-weight: 600; }
-    header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    /* ---------- Header ---------- */
+    .hero {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 24px;
+    }
+    .logo {
+      width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid; place-items: center; font-size: 22px;
+      box-shadow: 0 8px 30px rgba(91,140,255,0.35);
+    }
+    .hero h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    .hero .sub { color: var(--muted); font-size: 13.5px; margin-top: 3px; }
 
-    /* --- Strateji girdi satiri --- */
-    .input-row {
-      display: flex;
-      gap: 12px;
-      margin: 20px 0;
+    /* ---------- Strateji girdisi ---------- */
+    .composer {
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 22px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    }
+    .input-row { display: flex; gap: 12px; }
+    .input-wrap { position: relative; flex: 1; }
+    .input-wrap .ic {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 16px; pointer-events: none;
     }
     .input-row input {
-      flex: 1;
-      background: var(--panel);
+      width: 100%;
+      background: rgba(10,14,23,0.6);
       border: 1px solid var(--border);
       color: var(--text);
-      border-radius: 8px;
-      padding: 12px 14px;
-      font-size: 14px;
-      outline: none;
+      border-radius: 12px;
+      padding: 14px 14px 14px 42px;
+      font-size: 14.5px; outline: none;
+      transition: border-color .15s, box-shadow .15s;
     }
-    .input-row input:focus { border-color: var(--accent); }
-    .input-row button {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 0 22px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity .15s;
+    .input-row input::placeholder { color: #5c6779; }
+    .input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,0.15); }
+    .btn-run {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; border: none; border-radius: 12px;
+      padding: 0 26px; font-size: 14.5px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 9px;
+      transition: transform .12s, opacity .15s, box-shadow .15s;
+      box-shadow: 0 8px 24px rgba(91,140,255,0.30);
     }
-    .input-row button:hover { opacity: .9; }
-    .input-row button:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-run:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-run:disabled { opacity: .6; cursor: not-allowed; }
+    .spinner {
+      width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* --- Ana yerlesim: grafik + metrik paneli --- */
-    .layout {
-      display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 16px;
+    /* Örnek strateji çipleri */
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .chips .lbl { color: var(--muted); font-size: 12.5px; align-self: center; margin-right: 2px; }
+    .chip {
+      background: rgba(91,140,255,0.10); color: #aec4ff;
+      border: 1px solid rgba(91,140,255,0.22);
+      border-radius: 999px; padding: 6px 13px; font-size: 12.5px; cursor: pointer;
+      transition: background .15s, transform .1s;
     }
-    @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+    .chip:hover { background: rgba(91,140,255,0.20); transform: translateY(-1px); }
+
+    /* ---------- Yerlesim ---------- */
+    .layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
 
     .card {
       background: var(--panel);
+      backdrop-filter: blur(12px);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
+      border-radius: var(--radius);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
     }
-    .card h2 { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
-    #chart { width: 100%; height: 460px; }
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+    }
+    .card-head h2 { font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
 
-    /* --- Metrik kartlari --- */
-    .metric {
-      padding: 14px 0;
-      border-bottom: 1px solid var(--border);
+    /* Grafik sekmeleri */
+    .tabs { display: flex; gap: 4px; background: rgba(10,14,23,0.5); padding: 4px; border-radius: 10px; }
+    .tab {
+      border: none; background: transparent; color: var(--muted);
+      padding: 6px 14px; font-size: 12.5px; font-weight: 600; border-radius: 7px; cursor: pointer;
+      transition: all .15s;
     }
-    .metric:last-child { border-bottom: none; }
-    .metric .label { color: var(--muted); font-size: 12px; }
-    .metric .value { font-size: 24px; font-weight: 700; margin-top: 4px; }
-    .value.green { color: var(--green); }
-    .value.red { color: var(--red); }
+    .tab.active { background: rgba(91,140,255,0.18); color: #cfe0ff; }
+    .chart-box { padding: 14px; }
+    #chartPrice, #chartEquity { width: 100%; height: 470px; }
+    #chartEquity { display: none; }
 
-    .asset-badge {
-      display: inline-block;
-      background: rgba(47,129,247,.15);
-      color: var(--accent);
-      border-radius: 6px;
-      padding: 3px 10px;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 12px;
+    /* ---------- Sidebar ---------- */
+    .side { display: flex; flex-direction: column; gap: 18px; }
+
+    .asset-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; }
+    .asset-name { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
+    .asset-tag { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .pill { font-size: 11.5px; font-weight: 700; padding: 5px 11px; border-radius: 999px; }
+    .pill.buy { background: rgba(46,189,133,0.15); color: var(--green); }
+    .pill.sell { background: rgba(246,70,93,0.15); color: var(--red); }
+
+    /* Metrik grid */
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
+    .stat {
+      background: rgba(10,14,23,0.45); border: 1px solid var(--border);
+      border-radius: 12px; padding: 13px 14px;
     }
-    .status { font-size: 13px; color: var(--muted); margin-top: 12px; min-height: 18px; }
+    .stat .k { color: var(--muted); font-size: 11.5px; display: flex; align-items: center; gap: 6px; }
+    .stat .v { font-size: 22px; font-weight: 800; margin-top: 7px; letter-spacing: -0.5px; }
+    .v.green { color: var(--green); } .v.red { color: var(--red); }
+    .stat.wide { grid-column: 1 / -1; }
+    .stat.wide .v { font-size: 18px; }
+
+    /* Anlaşılan kural */
+    .rule-box { padding: 16px 18px; }
+    .rule-box .t { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+    .cond {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      font-size: 13px; padding: 8px 10px; background: rgba(10,14,23,0.45);
+      border: 1px solid var(--border); border-radius: 9px; margin-bottom: 7px;
+    }
+    .cond .badge { background: rgba(123,91,255,0.16); color: #c3b0ff; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+    .cond .op { color: var(--muted); }
+    .cond .val { font-weight: 700; }
+
+    .status { padding: 0 18px 16px; font-size: 12.5px; color: var(--muted); min-height: 16px; }
     .status.error { color: var(--red); }
+
+    /* Boş durum */
+    .empty { color: #5c6779; font-size: 13px; text-align: center; padding: 30px 16px; }
+
+    .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); }
+    .legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>📈 Prompt-to-Code · Strateji Backtest</h1>
-      <p>Türkçe stratejini yaz, otomatik kurala çevrilsin, geçmiş veride test edilsin.</p>
-    </header>
-
-    <!-- Strateji girdisi -->
-    <div class="input-row">
-      <input
-        id="strategyInput"
-        type="text"
-        placeholder="Örn: RSI 35'in altına düştüğünde THYAO al."
-        value="RSI 35'in altına düştüğünde THYAO al."
-      />
-      <button id="runBtn">Çalıştır</button>
+    <!-- Header -->
+    <div class="hero">
+      <div class="logo">📈</div>
+      <div>
+        <h1>Prompt-to-Code · Strateji Backtest</h1>
+        <div class="sub">Türkçe stratejini yaz → otomatik kurala çevrilsin → geçmiş veride test edilsin.</div>
+      </div>
     </div>
 
-    <!-- Grafik + metrikler -->
+    <!-- Strateji girdisi -->
+    <div class="composer">
+      <div class="input-row">
+        <div class="input-wrap">
+          <span class="ic">💬</span>
+          <input id="strategyInput" type="text"
+            placeholder="Örn: RSI 35'in altına düştüğünde THYAO al."
+            value="RSI 35'in altına düştüğünde THYAO al." />
+        </div>
+        <button class="btn-run" id="runBtn">
+          <span class="spinner" id="spinner"></span>
+          <span id="btnText">Çalıştır</span>
+        </button>
+      </div>
+      <div class="chips" id="chips">
+        <span class="lbl">Örnekler:</span>
+        <span class="chip">RSI 30'un altına düştüğünde ASELS al.</span>
+        <span class="chip">RSI 40'ın altına düştüğünde GARAN al.</span>
+        <span class="chip">RSI 35'in altına düştüğünde gümüş al.</span>
+        <span class="chip">RSI 45'in altına düştüğünde THYAO al.</span>
+      </div>
+    </div>
+
+    <!-- Sonuçlar -->
     <div class="layout">
+      <!-- Grafik kartı -->
       <div class="card">
-        <h2>Fiyat Grafiği & Sinyaller</h2>
-        <div id="chart"></div>
+        <div class="card-head">
+          <h2>Grafik</h2>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="legend">
+              <span><i style="background:#f0b90b"></i>SMA50</span>
+              <span><i style="background:#b07bff"></i>SMA200</span>
+            </div>
+            <div class="tabs">
+              <button class="tab active" data-tab="price">Fiyat & Sinyaller</button>
+              <button class="tab" data-tab="equity">Portföy Eğrisi</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-box">
+          <div id="chartPrice"></div>
+          <div id="chartEquity"></div>
+        </div>
       </div>
 
-      <div class="card">
-        <h2>Backtest Metrikleri</h2>
-        <div id="assetBadge" class="asset-badge" style="display:none;"></div>
+      <!-- Sidebar -->
+      <div class="side">
+        <div class="card">
+          <div class="asset-row">
+            <div>
+              <div class="asset-name" id="assetName">—</div>
+              <div class="asset-tag">Backtest · 2 yıl · komisyon %0.1</div>
+            </div>
+            <span class="pill buy" id="actionPill" style="display:none;">AL</span>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <div class="k">📊 Toplam K/Z</div>
+              <div class="v" id="mPnl">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">🎯 Win Rate</div>
+              <div class="v" id="mWin">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">📉 Max Drawdown</div>
+              <div class="v" id="mDd">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">🔄 İşlem Sayısı</div>
+              <div class="v" id="mTrades">—</div>
+            </div>
+            <div class="stat wide">
+              <div class="k">💰 Son Bakiye (başlangıç 10.000 ₺)</div>
+              <div class="v" id="mBal">—</div>
+            </div>
+          </div>
+          <div class="status" id="status"></div>
+        </div>
 
-        <div class="metric">
-          <div class="label">Toplam Kâr / Zarar</div>
-          <div class="value" id="mPnl">—</div>
+        <!-- Anlaşılan kural -->
+        <div class="card">
+          <div class="rule-box">
+            <div class="t">🤖 Yapay zekânın anladığı kural</div>
+            <div id="ruleConds"><div class="empty">Henüz strateji çalıştırılmadı.</div></div>
+          </div>
         </div>
-        <div class="metric">
-          <div class="label">Kazanma Oranı (Win Rate)</div>
-          <div class="value" id="mWin">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">Maksimum Düşüş (Max Drawdown)</div>
-          <div class="value" id="mDd">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">Toplam İşlem / Bakiye</div>
-          <div class="value" id="mTrades" style="font-size:18px;">—</div>
-        </div>
-
-        <div class="status" id="status"></div>
       </div>
     </div>
   </div>
 
   <script>
-    // ---- Backend adresi (gerekirse degistir) ----
-    const API_URL = (location.origin.startsWith("http"))
+    // ---- Backend adresi ----
+    const API_URL = location.origin.startsWith("http")
       ? location.origin + "/api/run-strategy"
       : "http://127.0.0.1:8000/api/run-strategy";
 
-    // ---- Grafik kurulumu ----
-    const chartEl = document.getElementById("chart");
-    const chart = LightweightCharts.createChart(chartEl, {
-      layout: { background: { color: "transparent" }, textColor: "#8b949e" },
-      grid: {
-        vertLines: { color: "rgba(48,54,61,0.5)" },
-        horzLines: { color: "rgba(48,54,61,0.5)" },
-      },
-      timeScale: { borderColor: "#30363d" },
-      rightPriceScale: { borderColor: "#30363d" },
+    // ---- Ortak grafik ayarlari ----
+    const baseOpts = {
+      layout: { background: { color: "transparent" }, textColor: "#8a96ac", fontFamily: "inherit" },
+      grid: { vertLines: { color: "rgba(120,140,180,0.07)" }, horzLines: { color: "rgba(120,140,180,0.07)" } },
+      timeScale: { borderColor: "rgba(120,140,180,0.14)" },
+      rightPriceScale: { borderColor: "rgba(120,140,180,0.14)" },
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    };
+
+    // ---- Fiyat grafigi ----
+    const priceEl = document.getElementById("chartPrice");
+    const priceChart = LightweightCharts.createChart(priceEl, baseOpts);
+    const candleSeries = priceChart.addCandlestickSeries({
+      upColor: "#2ebd85", downColor: "#f6465d", borderVisible: false,
+      wickUpColor: "#2ebd85", wickDownColor: "#f6465d",
+    });
+    const sma50Series = priceChart.addLineSeries({ color: "#f0b90b", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
+    const sma200Series = priceChart.addLineSeries({ color: "#b07bff", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
+
+    // ---- Portfoy (equity) grafigi ----
+    const equityEl = document.getElementById("chartEquity");
+    const equityChart = LightweightCharts.createChart(equityEl, baseOpts);
+    const equitySeries = equityChart.addAreaSeries({
+      lineColor: "#5b8cff", topColor: "rgba(91,140,255,0.35)", bottomColor: "rgba(91,140,255,0.02)",
+      lineWidth: 2, priceLineVisible: false,
     });
 
-    // Mum (candlestick) serisi
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: "#26a69a", downColor: "#ef5350",
-      borderVisible: false,
-      wickUpColor: "#26a69a", wickDownColor: "#ef5350",
+    // Olceklendirme
+    function fitWidths() {
+      priceChart.applyOptions({ width: priceEl.clientWidth, height: 470 });
+      equityChart.applyOptions({ width: equityEl.clientWidth || priceEl.clientWidth, height: 470 });
+    }
+    new ResizeObserver(fitWidths).observe(priceEl);
+    fitWidths();
+
+    // ---- Sekme gecisi ----
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        const isPrice = tab.dataset.tab === "price";
+        priceEl.style.display = isPrice ? "block" : "none";
+        equityEl.style.display = isPrice ? "none" : "block";
+        if (!isPrice) { setTimeout(() => { fitWidths(); equityChart.timeScale().fitContent(); }, 0); }
+      });
     });
 
-    // SMA çizgi serileri (görsel zenginlik)
-    const sma50Series = chart.addLineSeries({ color: "#f0b90b", lineWidth: 1, priceLineVisible: false });
-    const sma200Series = chart.addLineSeries({ color: "#9d4edd", lineWidth: 1, priceLineVisible: false });
-
-    // Pencere boyutuyla grafigi olcekle
-    new ResizeObserver(() => chart.applyOptions({ width: chartEl.clientWidth })).observe(chartEl);
-    chart.applyOptions({ width: chartEl.clientWidth, height: 460 });
-
-    // ---- Yardimci: renkli deger yazimi ----
-    function setSignedValue(el, num, suffix = "%") {
+    // ---- Yardimcilar ----
+    function setSigned(el, num, suffix = "%") {
       el.textContent = (num > 0 ? "+" : "") + num + suffix;
       el.classList.remove("green", "red");
       el.classList.add(num >= 0 ? "green" : "red");
     }
+    const OP_TR = { less_than: "<", greater_than: ">", crosses_above: "yukarı keser", crosses_below: "aşağı keser", equals: "=" };
 
-    // ---- Ana akis: stratejiyi calistir ----
+    // ---- Ana akis ----
     const runBtn = document.getElementById("runBtn");
+    const spinner = document.getElementById("spinner");
+    const btnText = document.getElementById("btnText");
     const statusEl = document.getElementById("status");
 
     async function runStrategy() {
       const text = document.getElementById("strategyInput").value.trim();
       if (!text) return;
 
-      runBtn.disabled = true;
-      statusEl.className = "status";
-      statusEl.textContent = "Strateji çözümleniyor, veri çekiliyor ve test ediliyor…";
+      runBtn.disabled = true; spinner.style.display = "inline-block"; btnText.textContent = "Çalışıyor…";
+      statusEl.className = "status"; statusEl.textContent = "Strateji çözümleniyor, veri çekiliyor ve test ediliyor…";
 
       try {
         const res = await fetch(API_URL, {
@@ -215,57 +366,79 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ strateji_metni: text }),
         });
-
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.detail || `Sunucu hatası (${res.status})`);
         }
-
         const data = await res.json();
         renderResults(data);
-        statusEl.textContent = `Tamamlandı · ${data.candles.length} mum, ${data.signals.length} sinyal.`;
+        statusEl.textContent = `✓ Tamamlandı · ${data.candles.length} mum · ${data.signals.length} sinyal`;
       } catch (e) {
         statusEl.className = "status error";
-        statusEl.textContent = "Hata: " + e.message;
+        statusEl.textContent = "⚠ Hata: " + e.message;
       } finally {
-        runBtn.disabled = false;
+        runBtn.disabled = false; spinner.style.display = "none"; btnText.textContent = "Çalıştır";
       }
     }
 
-    // ---- Sonuclari grafige ve panele bas ----
     function renderResults(data) {
-      // 1) Mum verisi
+      // 1) Fiyat + SMA
       candleSeries.setData(data.candles);
       sma50Series.setData(data.sma50 || []);
       sma200Series.setData(data.sma200 || []);
 
-      // 2) AL/SAT marker'lari (yesil ok yukarida, kirmizi ok asagida)
+      // 2) AL/SAT marker'lari
       const markers = (data.signals || []).map((s) => {
-        const isBuy = s.side === "BUY";
+        const buy = s.side === "BUY";
         return {
-          time: s.date,
-          position: isBuy ? "belowBar" : "aboveBar",
-          color: isBuy ? "#26a69a" : "#ef5350",
-          shape: isBuy ? "arrowUp" : "arrowDown",
-          text: isBuy ? "AL" : "SAT",
+          time: s.date, position: buy ? "belowBar" : "aboveBar",
+          color: buy ? "#2ebd85" : "#f6465d", shape: buy ? "arrowUp" : "arrowDown",
+          text: buy ? "AL" : "SAT",
         };
       });
       candleSeries.setMarkers(markers);
-      chart.timeScale().fitContent();
+      priceChart.timeScale().fitContent();
 
-      // 3) Metrik paneli
+      // 3) Portfoy egrisi
+      equitySeries.setData(data.equity || []);
+      equityChart.timeScale().fitContent();
+
+      // 4) Metrikler
       const m = data.metrics;
-      const badge = document.getElementById("assetBadge");
-      badge.style.display = "inline-block";
-      badge.textContent = data.asset;
+      document.getElementById("assetName").textContent = data.asset;
+      const pill = document.getElementById("actionPill");
+      const act = (data.rule.action || "BUY");
+      pill.style.display = "inline-block";
+      pill.className = "pill " + (act === "SELL" ? "sell" : "buy");
+      pill.textContent = act === "SELL" ? "SAT" : "AL";
 
-      setSignedValue(document.getElementById("mPnl"), m.toplam_kar_zarar_pct);
+      setSigned(document.getElementById("mPnl"), m.toplam_kar_zarar_pct);
       document.getElementById("mWin").textContent = m.win_rate_pct + "%";
-      setSignedValue(document.getElementById("mDd"), m.max_drawdown_pct);
-      document.getElementById("mTrades").textContent =
-        `${m.toplam_islem_sayisi} işlem · ${m.son_bakiye.toLocaleString("tr-TR")} ₺`;
+      setSigned(document.getElementById("mDd"), m.max_drawdown_pct);
+      document.getElementById("mTrades").textContent = m.toplam_islem_sayisi;
+      document.getElementById("mBal").textContent = m.son_bakiye.toLocaleString("tr-TR") + " ₺";
+
+      // 5) Anlasilan kural
+      const condBox = document.getElementById("ruleConds");
+      condBox.innerHTML = "";
+      (data.rule.conditions || []).forEach((c) => {
+        const div = document.createElement("div");
+        div.className = "cond";
+        div.innerHTML =
+          `<span class="badge">${c.indicator}</span>` +
+          `<span class="op">${OP_TR[c.operator] || c.operator}</span>` +
+          `<span class="val">${c.value}</span>`;
+        condBox.appendChild(div);
+      });
     }
 
+    // ---- Cipler ve klavye ----
+    document.querySelectorAll("#chips .chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        document.getElementById("strategyInput").value = chip.textContent;
+        runStrategy();
+      });
+    });
     runBtn.addEventListener("click", runStrategy);
     document.getElementById("strategyInput").addEventListener("keydown", (e) => {
       if (e.key === "Enter") runStrategy();

@@ -80,6 +80,19 @@ def _build_candles(df: pd.DataFrame) -> Dict[str, List[Dict[str, Any]]]:
     return {"candles": candles, "sma50": sma50, "sma200": sma200}
 
 
+def _build_equity(equity_curve) -> List[Dict[str, Any]]:
+    """Backtester equity Series'ini Lightweight Charts line formatina cevirir."""
+    if equity_curve is None:
+        return []
+    out = []
+    for ts, val in equity_curve.items():
+        out.append({
+            "time": pd.Timestamp(ts).strftime("%Y-%m-%d"),
+            "value": round(float(val), 2),
+        })
+    return out
+
+
 def _derive_exit_rule(buy_rule: Dict[str, Any]) -> Dict[str, Any]:
     """
     Tek bir AL kuralindan makul bir SAT (cikis) kurali turetir.
@@ -173,6 +186,7 @@ def run_strategy(req: StrategyRequest) -> Dict[str, Any]:
         "candles": chart["candles"],
         "sma50": chart["sma50"],
         "sma200": chart["sma200"],
+        "equity": _build_equity(bt.equity_curve),  # portfoy degeri egrisi
     }
 
 

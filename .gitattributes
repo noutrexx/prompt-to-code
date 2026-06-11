@@ -1,0 +1,7 @@
+# Satir sonlarini normalize et (LF/CRLF uyarilarini sustur)
+* text=auto eol=lf
+
+# Binary dosyalar
+*.png binary
+*.jpg binary
+*.pdf binary

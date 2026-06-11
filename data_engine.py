@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
+import time
+from typing import Dict, Optional, Tuple
 
 import pandas as pd
 import yfinance as yf
@@ -26,6 +27,11 @@ from ta.trend import MACD, SMAIndicator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+
+# Basit modul-seviye onbellek: (sembol, period, interval) -> (zaman, DataFrame)
+# Gunluk veri sik degismedigi icin varsayilan TTL 1 saat.
+_CACHE: Dict[Tuple[str, str, str], Tuple[float, pd.DataFrame]] = {}
+_CACHE_TTL_SECONDS = 3600
 
 
 class MarketDataError(Exception):
@@ -46,8 +52,18 @@ class MarketDataFetcher:
     # ------------------------------------------------------------------ #
     # 1) Veri cekme
     # ------------------------------------------------------------------ #
-    def fetch(self) -> pd.DataFrame:
-        """yfinance ile son 1 yillik gunluk veriyi ceker."""
+    def fetch(self, use_cache: bool = True) -> pd.DataFrame:
+        """yfinance ile gunluk veriyi ceker (TTL'li onbellek destegiyle)."""
+        cache_key = (self.symbol, self.period, self.interval)
+
+        # Onbellek kontrolu: taze kayit varsa yfinance'i hic cagirma.
+        if use_cache and cache_key in _CACHE:
+            ts, cached_df = _CACHE[cache_key]
+            if time.time() - ts < _CACHE_TTL_SECONDS:
+                self.df = cached_df.copy()
+                logger.info("'%s' verisi onbellekten alindi (%d satir).", self.symbol, len(cached_df))
+                return self.df
+
         try:
             df = yf.download(
                 self.symbol,
@@ -70,6 +86,7 @@ class MarketDataFetcher:
 
         df.index.name = "Date"
         self.df = df
+        _CACHE[cache_key] = (time.time(), df.copy())  # onbellege yaz
         logger.info("'%s' icin %d satir veri cekildi.", self.symbol, len(df))
         return df
 

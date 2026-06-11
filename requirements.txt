@@ -1,14 +1,14 @@
 # Veri & indikatorler
-yfinance
-ta
-pandas
-numpy
+yfinance==1.2.0
+ta==0.11.0
+pandas==2.2.2
+numpy==1.26.4
 
 # NLP (Gemini + structured output)
-google-genai
-pydantic
-python-dotenv
+google-genai==2.8.0
+pydantic==2.13.4
+python-dotenv==1.1.0
 
 # Backend
-fastapi
-uvicorn[standard]
+fastapi==0.136.3
+uvicorn[standard]==0.49.0
