@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Prompt-to-Code · Strateji Backtest</title>
+  <title>Prompt-to-Code · Strategy Backtest</title>
 
   <!-- TradingView Lightweight Charts (CDN) -->
   <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
@@ -48,13 +48,13 @@
     .logo {
       width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0;
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      display: grid; place-items: center; font-size: 22px;
+      display: grid; place-items: center;
       box-shadow: 0 8px 30px rgba(91,140,255,0.35);
     }
     .hero h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
     .hero .sub { color: var(--muted); font-size: 13.5px; margin-top: 3px; }
 
-    /* ---------- Strateji girdisi ---------- */
+    /* ---------- Strategy composer ---------- */
     .composer {
       background: var(--panel);
       backdrop-filter: blur(12px);
@@ -68,7 +68,7 @@
     .input-wrap { position: relative; flex: 1; }
     .input-wrap .ic {
       position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-      color: var(--muted); font-size: 16px; pointer-events: none;
+      color: var(--muted); pointer-events: none; display: flex;
     }
     .input-row input {
       width: 100%;
@@ -99,7 +99,7 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Örnek strateji çipleri */
+    /* Example strategy chips */
     .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .chips .lbl { color: var(--muted); font-size: 12.5px; align-self: center; margin-right: 2px; }
     .chip {
@@ -110,7 +110,7 @@
     }
     .chip:hover { background: rgba(91,140,255,0.20); transform: translateY(-1px); }
 
-    /* ---------- Yerlesim ---------- */
+    /* ---------- Layout ---------- */
     .layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
     @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
 
@@ -127,7 +127,7 @@
     }
     .card-head h2 { font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
 
-    /* Grafik sekmeleri */
+    /* Chart tabs */
     .tabs { display: flex; gap: 4px; background: rgba(10,14,23,0.5); padding: 4px; border-radius: 10px; }
     .tab {
       border: none; background: transparent; color: var(--muted);
@@ -149,7 +149,7 @@
     .pill.buy { background: rgba(46,189,133,0.15); color: var(--green); }
     .pill.sell { background: rgba(246,70,93,0.15); color: var(--red); }
 
-    /* Metrik grid */
+    /* Metric grid */
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
     .stat {
       background: rgba(10,14,23,0.45); border: 1px solid var(--border);
@@ -161,7 +161,7 @@
     .stat.wide { grid-column: 1 / -1; }
     .stat.wide .v { font-size: 18px; }
 
-    /* Anlaşılan kural */
+    /* Parsed rule */
     .rule-box { padding: 16px 18px; }
     .rule-box .t { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
     .cond {
@@ -176,7 +176,7 @@
     .status { padding: 0 18px 16px; font-size: 12.5px; color: var(--muted); min-height: 16px; }
     .status.error { color: var(--red); }
 
-    /* Boş durum */
+    /* Empty state */
     .empty { color: #5c6779; font-size: 13px; text-align: center; padding: 30px 16px; }
 
     .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); }
@@ -187,50 +187,61 @@
   <div class="container">
     <!-- Header -->
     <div class="hero">
-      <div class="logo">📈</div>
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <line x1="7" y1="4" x2="7" y2="20" stroke="#fff" stroke-width="1.6"/>
+          <rect x="4.5" y="8" width="5" height="8" rx="1.2" fill="#fff"/>
+          <line x1="16" y1="3" x2="16" y2="19" stroke="#fff" stroke-width="1.6" opacity="0.85"/>
+          <rect x="13.5" y="6" width="5" height="6" rx="1.2" fill="#fff" opacity="0.85"/>
+        </svg>
+      </div>
       <div>
-        <h1>Prompt-to-Code · Strateji Backtest</h1>
-        <div class="sub">Türkçe stratejini yaz → otomatik kurala çevrilsin → geçmiş veride test edilsin.</div>
+        <h1>Prompt-to-Code · Strategy Backtest</h1>
+        <div class="sub">Describe a strategy in plain language — it is parsed into rules and backtested on historical data. English &amp; Turkish supported.</div>
       </div>
     </div>
 
-    <!-- Strateji girdisi -->
+    <!-- Strategy composer -->
     <div class="composer">
       <div class="input-row">
         <div class="input-wrap">
-          <span class="ic">💬</span>
+          <span class="ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </span>
           <input id="strategyInput" type="text"
-            placeholder="Örn: RSI 35'in altına düştüğünde THYAO al."
-            value="RSI 35'in altına düştüğünde THYAO al." />
+            placeholder="e.g. Buy THYAO when RSI drops below 35"
+            value="Buy THYAO when RSI drops below 35" />
         </div>
         <button class="btn-run" id="runBtn">
           <span class="spinner" id="spinner"></span>
-          <span id="btnText">Çalıştır</span>
+          <span id="btnText">Run</span>
         </button>
       </div>
       <div class="chips" id="chips">
-        <span class="lbl">Örnekler:</span>
-        <span class="chip">RSI 30'un altına düştüğünde ASELS al.</span>
-        <span class="chip">RSI 40'ın altına düştüğünde GARAN al.</span>
-        <span class="chip">RSI 35'in altına düştüğünde gümüş al.</span>
-        <span class="chip">RSI 45'in altına düştüğünde THYAO al.</span>
+        <span class="lbl">Examples:</span>
+        <span class="chip">Buy ASELS when RSI drops below 30</span>
+        <span class="chip">Buy GARAN when price crosses above SMA50</span>
+        <span class="chip">Buy THYAO when MACD crosses above its signal line</span>
+        <span class="chip">RSI 35'in altına düşünce gümüş al</span>
       </div>
     </div>
 
-    <!-- Sonuçlar -->
+    <!-- Results -->
     <div class="layout">
-      <!-- Grafik kartı -->
+      <!-- Chart card -->
       <div class="card">
         <div class="card-head">
-          <h2>Grafik</h2>
+          <h2>Chart</h2>
           <div style="display:flex; align-items:center; gap:14px;">
             <div class="legend">
               <span><i style="background:#f0b90b"></i>SMA50</span>
               <span><i style="background:#b07bff"></i>SMA200</span>
             </div>
             <div class="tabs">
-              <button class="tab active" data-tab="price">Fiyat & Sinyaller</button>
-              <button class="tab" data-tab="equity">Portföy Eğrisi</button>
+              <button class="tab active" data-tab="price">Price &amp; Signals</button>
+              <button class="tab" data-tab="equity">Equity Curve</button>
             </div>
           </div>
         </div>
@@ -246,40 +257,40 @@
           <div class="asset-row">
             <div>
               <div class="asset-name" id="assetName">—</div>
-              <div class="asset-tag">Backtest · 2 yıl · komisyon %0.1</div>
+              <div class="asset-tag">Backtest · 2 years · 0.1% commission</div>
             </div>
-            <span class="pill buy" id="actionPill" style="display:none;">AL</span>
+            <span class="pill buy" id="actionPill" style="display:none;">BUY</span>
           </div>
           <div class="stats">
             <div class="stat">
-              <div class="k">📊 Toplam K/Z</div>
+              <div class="k">Total P/L</div>
               <div class="v" id="mPnl">—</div>
             </div>
             <div class="stat">
-              <div class="k">🎯 Win Rate</div>
+              <div class="k">Win Rate</div>
               <div class="v" id="mWin">—</div>
             </div>
             <div class="stat">
-              <div class="k">📉 Max Drawdown</div>
+              <div class="k">Max Drawdown</div>
               <div class="v" id="mDd">—</div>
             </div>
             <div class="stat">
-              <div class="k">🔄 İşlem Sayısı</div>
+              <div class="k">Trades</div>
               <div class="v" id="mTrades">—</div>
             </div>
             <div class="stat wide">
-              <div class="k">💰 Son Bakiye (başlangıç 10.000 ₺)</div>
+              <div class="k">Final Balance (start 10,000 ₺)</div>
               <div class="v" id="mBal">—</div>
             </div>
           </div>
           <div class="status" id="status"></div>
         </div>
 
-        <!-- Anlaşılan kural -->
+        <!-- Parsed rule -->
         <div class="card">
           <div class="rule-box">
-            <div class="t">🤖 Yapay zekânın anladığı kural</div>
-            <div id="ruleConds"><div class="empty">Henüz strateji çalıştırılmadı.</div></div>
+            <div class="t">AI-parsed rule</div>
+            <div id="ruleConds"><div class="empty">No strategy run yet.</div></div>
           </div>
         </div>
       </div>
@@ -287,12 +298,12 @@
   </div>
 
   <script>
-    // ---- Backend adresi ----
+    // ---- Backend endpoint ----
     const API_URL = location.origin.startsWith("http")
       ? location.origin + "/api/run-strategy"
       : "http://127.0.0.1:8000/api/run-strategy";
 
-    // ---- Ortak grafik ayarlari ----
+    // ---- Shared chart options ----
     const baseOpts = {
       layout: { background: { color: "transparent" }, textColor: "#8a96ac", fontFamily: "inherit" },
       grid: { vertLines: { color: "rgba(120,140,180,0.07)" }, horzLines: { color: "rgba(120,140,180,0.07)" } },
@@ -301,7 +312,7 @@
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     };
 
-    // ---- Fiyat grafigi ----
+    // ---- Price chart ----
     const priceEl = document.getElementById("chartPrice");
     const priceChart = LightweightCharts.createChart(priceEl, baseOpts);
     const candleSeries = priceChart.addCandlestickSeries({
@@ -311,7 +322,7 @@
     const sma50Series = priceChart.addLineSeries({ color: "#f0b90b", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
     const sma200Series = priceChart.addLineSeries({ color: "#b07bff", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
 
-    // ---- Portfoy (equity) grafigi ----
+    // ---- Equity chart ----
     const equityEl = document.getElementById("chartEquity");
     const equityChart = LightweightCharts.createChart(equityEl, baseOpts);
     const equitySeries = equityChart.addAreaSeries({
@@ -319,7 +330,7 @@
       lineWidth: 2, priceLineVisible: false,
     });
 
-    // Olceklendirme
+    // Responsive sizing
     function fitWidths() {
       priceChart.applyOptions({ width: priceEl.clientWidth, height: 470 });
       equityChart.applyOptions({ width: equityEl.clientWidth || priceEl.clientWidth, height: 470 });
@@ -327,7 +338,7 @@
     new ResizeObserver(fitWidths).observe(priceEl);
     fitWidths();
 
-    // ---- Sekme gecisi ----
+    // ---- Tab switching ----
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.addEventListener("click", () => {
         document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
@@ -339,15 +350,15 @@
       });
     });
 
-    // ---- Yardimcilar ----
+    // ---- Helpers ----
     function setSigned(el, num, suffix = "%") {
       el.textContent = (num > 0 ? "+" : "") + num + suffix;
       el.classList.remove("green", "red");
       el.classList.add(num >= 0 ? "green" : "red");
     }
-    const OP_TR = { less_than: "<", greater_than: ">", crosses_above: "yukarı keser", crosses_below: "aşağı keser", equals: "=" };
+    const OP_LABEL = { less_than: "<", greater_than: ">", crosses_above: "crosses above", crosses_below: "crosses below", equals: "=" };
 
-    // ---- Ana akis ----
+    // ---- Main flow ----
     const runBtn = document.getElementById("runBtn");
     const spinner = document.getElementById("spinner");
     const btnText = document.getElementById("btnText");
@@ -357,8 +368,8 @@
       const text = document.getElementById("strategyInput").value.trim();
       if (!text) return;
 
-      runBtn.disabled = true; spinner.style.display = "inline-block"; btnText.textContent = "Çalışıyor…";
-      statusEl.className = "status"; statusEl.textContent = "Strateji çözümleniyor, veri çekiliyor ve test ediliyor…";
+      runBtn.disabled = true; spinner.style.display = "inline-block"; btnText.textContent = "Running…";
+      statusEl.className = "status"; statusEl.textContent = "Parsing strategy, fetching data and running the backtest…";
 
       try {
         const res = await fetch(API_URL, {
@@ -368,57 +379,57 @@
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || `Sunucu hatası (${res.status})`);
+          throw new Error(err.detail || `Server error (${res.status})`);
         }
         const data = await res.json();
         renderResults(data);
-        statusEl.textContent = `✓ Tamamlandı · ${data.candles.length} mum · ${data.signals.length} sinyal`;
+        statusEl.textContent = `Done · ${data.candles.length} candles · ${data.signals.length} signals`;
       } catch (e) {
         statusEl.className = "status error";
-        statusEl.textContent = "⚠ Hata: " + e.message;
+        statusEl.textContent = "Error: " + e.message;
       } finally {
-        runBtn.disabled = false; spinner.style.display = "none"; btnText.textContent = "Çalıştır";
+        runBtn.disabled = false; spinner.style.display = "none"; btnText.textContent = "Run";
       }
     }
 
     function renderResults(data) {
-      // 1) Fiyat + SMA
+      // 1) Price + SMA
       candleSeries.setData(data.candles);
       sma50Series.setData(data.sma50 || []);
       sma200Series.setData(data.sma200 || []);
 
-      // 2) AL/SAT marker'lari
+      // 2) BUY/SELL markers (green up / red down arrows)
       const markers = (data.signals || []).map((s) => {
         const buy = s.side === "BUY";
         return {
           time: s.date, position: buy ? "belowBar" : "aboveBar",
           color: buy ? "#2ebd85" : "#f6465d", shape: buy ? "arrowUp" : "arrowDown",
-          text: buy ? "AL" : "SAT",
+          text: buy ? "BUY" : "SELL",
         };
       });
       candleSeries.setMarkers(markers);
       priceChart.timeScale().fitContent();
 
-      // 3) Portfoy egrisi
+      // 3) Equity curve
       equitySeries.setData(data.equity || []);
       equityChart.timeScale().fitContent();
 
-      // 4) Metrikler
+      // 4) Metrics
       const m = data.metrics;
       document.getElementById("assetName").textContent = data.asset;
       const pill = document.getElementById("actionPill");
       const act = (data.rule.action || "BUY");
       pill.style.display = "inline-block";
       pill.className = "pill " + (act === "SELL" ? "sell" : "buy");
-      pill.textContent = act === "SELL" ? "SAT" : "AL";
+      pill.textContent = act;
 
       setSigned(document.getElementById("mPnl"), m.toplam_kar_zarar_pct);
       document.getElementById("mWin").textContent = m.win_rate_pct + "%";
       setSigned(document.getElementById("mDd"), m.max_drawdown_pct);
       document.getElementById("mTrades").textContent = m.toplam_islem_sayisi;
-      document.getElementById("mBal").textContent = m.son_bakiye.toLocaleString("tr-TR") + " ₺";
+      document.getElementById("mBal").textContent = m.son_bakiye.toLocaleString("en-US") + " ₺";
 
-      // 5) Anlasilan kural
+      // 5) Parsed rule
       const condBox = document.getElementById("ruleConds");
       condBox.innerHTML = "";
       (data.rule.conditions || []).forEach((c) => {
@@ -426,13 +437,13 @@
         div.className = "cond";
         div.innerHTML =
           `<span class="badge">${c.indicator}</span>` +
-          `<span class="op">${OP_TR[c.operator] || c.operator}</span>` +
+          `<span class="op">${OP_LABEL[c.operator] || c.operator}</span>` +
           `<span class="val">${c.value}</span>`;
         condBox.appendChild(div);
       });
     }
 
-    // ---- Cipler ve klavye ----
+    // ---- Chips and keyboard ----
     document.querySelectorAll("#chips .chip").forEach((chip) => {
       chip.addEventListener("click", () => {
         document.getElementById("strategyInput").value = chip.textContent;

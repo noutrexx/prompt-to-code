@@ -93,10 +93,23 @@ class TradingRule(BaseModel):
 # System prompt
 # ---------------------------------------------------------------------- #
 SYSTEM_PROMPT = """\
-Sen uzman bir finansal kural ayristirma (parsing) asistanisin. Gorevin, kullanicinin
-Turkce dogal dilde yazdigi ticaret talimatini, verilen JSON semasina uygun
-yapilandirilmis bir kurala cevirmektir. Kullanici eksik/gunluk konusma diliyle yazsa
-bile niyetini cikar ve en yakin gecerli indikator/operatore esle.
+You are an expert financial rule-parsing assistant. Convert the user's natural-language
+trading instruction into a structured rule matching the given JSON schema. The user may
+write in ENGLISH or TURKISH (or mix them); understand both. Even if the text is terse or
+colloquial, infer intent and map to the nearest valid indicator/operator.
+
+English phrasing -> operator:
+  "drops/falls below", "under", "less than"      -> less_than
+  "rises/goes above", "over", "greater than"     -> greater_than
+  "crosses above", "breaks above"                -> crosses_above
+  "crosses below", "breaks below"                -> crosses_below
+  "touches", "equals"                            -> equals
+  "buy/long" -> BUY,  "sell/short/exit" -> SELL
+English indicator words: "moving average"->SMA_50, "50-day moving average"->SMA_50,
+"exponential/EMA"->EMA, "stochastic"->STOCH_K, "signal line"->MACD_Signal,
+"bollinger upper/lower band"->BB_Upper/BB_Lower, "price/close"->price.
+
+(Asagidaki Turkce kurallar da ayni sekilde gecerlidir.)
 
 == 1) SEMBOL ==
 - BIST hisseleri: sonuna ".IS" ekle. Ornek: THYAO->THYAO.IS, ASELS->ASELS.IS,
@@ -182,10 +195,11 @@ def _norm(text: str) -> str:
 _COMMODITY = {
     "gumus": "SI=F", "silver": "SI=F",
     "altin": "GC=F", "gold": "GC=F",
-    "ham petrol": "CL=F", "petrol": "CL=F", "oil": "CL=F",
-    "bakir": "HG=F", "dogalgaz": "NG=F",
+    "ham petrol": "CL=F", "petrol": "CL=F", "crude oil": "CL=F", "crude": "CL=F", "oil": "CL=F",
+    "bakir": "HG=F", "copper": "HG=F",
+    "dogalgaz": "NG=F", "natural gas": "NG=F",
     "bitcoin": "BTC-USD", "btc": "BTC-USD",
-    "dolar": "TRY=X",
+    "dolar": "TRY=X", "dollar": "TRY=X",
 }
 
 # Yaygin BIST hisse adlari -> sembol
@@ -232,6 +246,25 @@ def _nearest(period: int, options: tuple) -> int:
     return min(options, key=lambda o: abs(o - period))
 
 
+def _ma_column(c: str) -> Optional[str]:
+    """Cumlecikteki bir hareketli ortalama referansini kolon adina cevirir."""
+    m = re.search(r"\b(sma|ema)\s*[_-]?\s*(\d+)", c)  # "sma50", "ema_200", "ema 26"
+    if m:
+        period = int(m.group(2))
+        if m.group(1) == "ema":
+            return f"EMA_{_nearest(period, (12, 26, 50, 200))}"
+        return f"SMA_{_nearest(period, (20, 50, 100, 200))}"
+    if "ortalama" in c or "moving average" in c:
+        pm = re.search(r"(\d+)\s*-?\s*(?:gun|day)", c)  # "50 gunluk", "200-day"
+        is_ema = "ussel" in c or "exponential" in c or "ema" in c
+        if is_ema:
+            period = int(pm.group(1)) if pm else 12
+            return f"EMA_{_nearest(period, (12, 26, 50, 200))}"
+        period = int(pm.group(1)) if pm else 50
+        return f"SMA_{_nearest(period, (20, 50, 100, 200))}"
+    return None
+
+
 def _detect_indicator(clause: str) -> Optional[str]:
     """Bir cumlecikten indikator adini cikarir (kolon adlandirmasiyla)."""
     c = clause
@@ -239,63 +272,76 @@ def _detect_indicator(clause: str) -> Optional[str]:
         return "RSI"
     if "stokastik" in c or "stoch" in c:
         return "STOCH_K"
-    if "macd" in c:
-        return "MACD"
     if "adx" in c:
         return "ADX"
-    if "bollinger" in c or "bant" in c:
+
+    has_price = "fiyat" in c or "kapanis" in c or "price" in c or "close" in c
+    has_band = "bollinger" in c or "bant" in c or "band" in c
+    has_signal = "sinyal" in c or "signal" in c
+    ma = _ma_column(c)
+
+    # MACD tek basina (fiyatla kiyas yoksa) MACD'dir.
+    if "macd" in c and not has_price:
+        return "MACD"
+    # "fiyat ... ortalama/bant/sinyal" => ozne fiyat, digeri deger olur.
+    if has_price and (ma or has_band or has_signal):
+        return "price"
+    if "macd" in c:
+        return "MACD"
+    if has_band:
         if "ust" in c or "upper" in c:
             return "BB_Upper"
         if "alt" in c or "lower" in c:
             return "BB_Lower"
         return "BB_Middle"
-    # EMA (ussel) veya SMA (basit) hareketli ortalama
-    is_ema = "ussel" in c or "ema" in c
-    if "ortalama" in c or "ema" in c or "sma" in c or "ma " in c:
-        pm = re.search(r"(\d+)\s*gun", c)
-        period = int(pm.group(1)) if pm else (12 if is_ema else 50)
-        if is_ema:
-            return f"EMA_{_nearest(period, (12, 26, 50, 200))}"
-        return f"SMA_{_nearest(period, (20, 50, 100, 200))}"
-    if "fiyat" in c or "kapanis" in c:
+    if ma:
+        return ma
+    if has_price:
         return "price"
     return None
 
 
 def _detect_operator(clause: str) -> Optional[str]:
     c = clause
-    if "yukari kes" in c or "yukari kir" in c or "yukari gec" in c:
+    if "yukari kes" in c or "yukari kir" in c or "yukari gec" in c \
+            or "crosses above" in c or "cross above" in c or "breaks above" in c:
         return "crosses_above"
-    if "asagi kes" in c or "asagi kir" in c:
+    if "asagi kes" in c or "asagi kir" in c \
+            or "crosses below" in c or "cross below" in c or "breaks below" in c:
         return "crosses_below"
-    if "dokun" in c or "esit" in c:
+    if "dokun" in c or "esit" in c or "touch" in c or "equal" in c:
         return "equals"
-    if "alt" in c or "asagi" in c or "dus" in c or "az" in c or "kucuk" in c or "inince" in c or "iner" in c:
+    if ("alt" in c or "asagi" in c or "dus" in c or "az" in c or "kucuk" in c or "inince" in c or "iner" in c
+            or "below" in c or "under" in c or "less than" in c or "drop" in c or "fall" in c):
         return "less_than"
-    if "ust" in c or "uzer" in c or "yukar" in c or "gec" in c or "asar" in c or "fazla" in c or "buyuk" in c or "cik" in c:
+    if ("ust" in c or "uzer" in c or "yukar" in c or "gec" in c or "asar" in c or "fazla" in c or "buyuk" in c or "cik" in c
+            or "above" in c or "over" in c or "greater" in c or "rise" in c or "exceed" in c):
         return "greater_than"
     return None
 
 
 def _detect_value(clause: str, indicator: str):
-    """Esik degerini bulur: once sayi, yoksa baska bir indikator referansi."""
-    nums = re.findall(r"\d+(?:[.,]\d+)?", clause)
-    # Periyot olarak kullanilan sayiyi (orn. '50 gunluk') deger sanma:
-    period_nums = set(re.findall(r"(\d+)\s*gun", clause))
-    for n in nums:
-        if n not in period_nums:
+    """Esik degerini bulur: once gercek bir sayi, yoksa baska bir seri referansi."""
+    # Periyot/seri olarak gecen sayilari (deger sanmamak icin) disla:
+    exclude = set(re.findall(r"\b(?:sma|ema)\s*[_-]?\s*(\d+)", clause))
+    exclude |= set(re.findall(r"(\d+)\s*-?\s*(?:gun|day)", clause))
+
+    for n in re.findall(r"\d+(?:[.,]\d+)?", clause):
+        base = re.split(r"[.,]", n)[0]
+        if base not in exclude:
             return float(n.replace(",", "."))
-    # Sayi yoksa: cumlecikte gecen ikinci bir seriye gore karsilastirma
-    if "ortalama" in clause and not indicator.startswith(("SMA", "EMA")):
-        pm = re.search(r"(\d+)\s*gun", clause)
-        period = int(pm.group(1)) if pm else 50
-        return f"SMA_{_nearest(period, (20, 50, 100, 200))}"
-    if "sinyal" in clause:
+
+    # Sayisal esik yok: baska bir seriye gore karsilastirma referansi dondur
+    ma = _ma_column(clause)
+    if ma and ma != indicator:
+        return ma
+    if "sinyal" in clause or "signal" in clause:
         return "MACD_Signal"
-    if "alt band" in clause or ("bollinger" in clause and "alt" in clause):
-        return "BB_Lower"
-    if "ust band" in clause or ("bollinger" in clause and "ust" in clause):
-        return "BB_Upper"
+    if "bollinger" in clause or "band" in clause or "bant" in clause:
+        if "ust" in clause or "upper" in clause:
+            return "BB_Upper"
+        if "alt" in clause or "lower" in clause:
+            return "BB_Lower"
     return None
 
 
@@ -311,10 +357,11 @@ def local_parse(text: str) -> TradingRule:
             "Sembolu acikca yazin (orn. THYAO) veya Gemini'yi etkinlestirin."
         )
 
-    action = "SELL" if re.search(r"\bsat\b|satim|sat\.", norm) else "BUY"
+    is_sell = re.search(r"\bsat\b|satim|sat\.|\bsell\b|\bshort\b|\bexit\b", norm) is not None
+    action = "SELL" if is_sell else "BUY"
 
-    # Cumleyi 've' / virgul ile cumleciklere bol, her birinden bir kosul cikar
-    clauses = re.split(r"\bve\b|,|;", norm)
+    # Cumleyi 've'/'and'/virgul ile cumleciklere bol, her birinden bir kosul cikar
+    clauses = re.split(r"\bve\b|\band\b|,|;", norm)
     conditions = []
     for cl in clauses:
         ind = _detect_indicator(cl)
