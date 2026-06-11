@@ -44,11 +44,8 @@ app.add_middleware(
 )
 
 # NLP parser'i tek sefer kur (her istekte yeniden olusturmamak icin).
-# API anahtari yoksa istek aninda anlamli hata donecek.
-try:
-    _parser: BISTRuleParser | None = BISTRuleParser()
-except NLPParserError:
-    _parser = None
+# Anahtar yoksa parser yerel (regex) cozucu moduna gecer, yine de calisir.
+_parser = BISTRuleParser()
 
 
 # ---------------------------------------------------------------------- #
@@ -130,7 +127,8 @@ def _derive_exit_rule(buy_rule: Dict[str, Any]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------- #
 @app.get("/api/health")
 def health() -> Dict[str, Any]:
-    return {"status": "ok", "nlp_ready": _parser is not None}
+    # llm=True: Gemini aktif | llm=False: yalnizca yerel regex cozucu
+    return {"status": "ok", "nlp_ready": True, "llm": _parser.has_llm}
 
 
 @app.post("/api/run-strategy")
@@ -142,13 +140,7 @@ def run_strategy(req: StrategyRequest) -> Dict[str, Any]:
     if not text:
         raise HTTPException(status_code=400, detail="strateji_metni bos olamaz.")
 
-    if _parser is None:
-        raise HTTPException(
-            status_code=503,
-            detail="NLP servisi hazir degil. .env icine GEMINI_API_KEY ekleyin.",
-        )
-
-    # 1) Metni kurala cevir (NLP)
+    # 1) Metni kurala cevir (NLP: Gemini varsa onu, yoksa yerel cozucuyu kullanir)
     try:
         rule = _parser.parse(text)
         # mode="json": enum'lari ("BUY", "less_than" vb.) string degerlerine cevirir.

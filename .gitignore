@@ -20,3 +20,6 @@ Thumbs.db
 
 # Test artifaktlari
 resp.json
+
+# Calisma zamani onbellegi (cozulen kurallar)
+rule_cache.json

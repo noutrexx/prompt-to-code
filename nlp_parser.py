@@ -21,10 +21,13 @@ Kullanim:
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import time
 from enum import Enum
-from typing import List, Union
+from pathlib import Path
+from typing import List, Optional, Union
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -162,8 +165,188 @@ class NLPParserError(Exception):
     """NLP ayristirma sirasinda olusan hata."""
 
 
+# ====================================================================== #
+# YEREL (KURAL TABANLI) COZUCU
+# Gemini erisilemediginde (kota/ag yok) yaygin Turkce kaliplari regex ile
+# cozer. Gemini kadar esnek degildir ama temel stratejileri yakalar.
+# ====================================================================== #
+_TR_MAP = str.maketrans("üışçöğÜİŞÇÖĞ", "uiscogUISCOG")
+
+
+def _norm(text: str) -> str:
+    """Turkce karakterleri sadelestirip kucuk harfe cevirir."""
+    return text.translate(_TR_MAP).lower()
+
+
+# Emtia / kripto / doviz adlari -> yfinance sembolu
+_COMMODITY = {
+    "gumus": "SI=F", "silver": "SI=F",
+    "altin": "GC=F", "gold": "GC=F",
+    "ham petrol": "CL=F", "petrol": "CL=F", "oil": "CL=F",
+    "bakir": "HG=F", "dogalgaz": "NG=F",
+    "bitcoin": "BTC-USD", "btc": "BTC-USD",
+    "dolar": "TRY=X",
+}
+
+# Yaygin BIST hisse adlari -> sembol
+_KNOWN_BIST = {
+    "turk hava yollari": "THYAO.IS", "thy": "THYAO.IS", "thyao": "THYAO.IS",
+    "garanti": "GARAN.IS", "garan": "GARAN.IS",
+    "aselsan": "ASELS.IS", "asels": "ASELS.IS",
+    "akbank": "AKBNK.IS", "akbnk": "AKBNK.IS",
+    "is bankasi": "ISCTR.IS", "isbank": "ISCTR.IS", "isctr": "ISCTR.IS",
+    "bim": "BIMAS.IS", "bimas": "BIMAS.IS",
+    "eregli": "EREGL.IS", "eregl": "EREGL.IS",
+    "tupras": "TUPRS.IS", "tuprs": "TUPRS.IS",
+    "sasa": "SASA.IS",
+    "koc holding": "KCHOL.IS", "kchol": "KCHOL.IS",
+    "sabanci": "SAHOL.IS", "sahol": "SAHOL.IS",
+    "ford": "FROTO.IS", "froto": "FROTO.IS",
+    "pegasus": "PGSUS.IS", "pgsus": "PGSUS.IS",
+    "sisecam": "SISE.IS", "sise": "SISE.IS",
+}
+
+
+def _detect_asset(raw: str, norm: str) -> Optional[str]:
+    """Metinden hisse/emtia sembolu cikarir (kelime sinirlariyla)."""
+    def _has(word: str) -> bool:
+        # Kelime siniri: "altin" -> "altina" icinde ESLESMEZ.
+        return re.search(r"\b" + re.escape(word) + r"\b", norm) is not None
+
+    # 1) Emtia adlari (en uzun eslesme oncelikli)
+    for name in sorted(_COMMODITY, key=len, reverse=True):
+        if _has(name):
+            return _COMMODITY[name]
+    # 2) Bilinen BIST adlari
+    for name in sorted(_KNOWN_BIST, key=len, reverse=True):
+        if _has(name):
+            return _KNOWN_BIST[name]
+    # 3) Orijinal metinde 4-6 harfli buyuk harf token (orn. THYAO) -> .IS
+    m = re.search(r"\b([A-ZÇĞİÖŞÜ]{4,6})\b", raw)
+    if m:
+        return m.group(1).translate(_TR_MAP).upper() + ".IS"
+    return None
+
+
+def _nearest(period: int, options: tuple) -> int:
+    return min(options, key=lambda o: abs(o - period))
+
+
+def _detect_indicator(clause: str) -> Optional[str]:
+    """Bir cumlecikten indikator adini cikarir (kolon adlandirmasiyla)."""
+    c = clause
+    if "rsi" in c:
+        return "RSI"
+    if "stokastik" in c or "stoch" in c:
+        return "STOCH_K"
+    if "macd" in c:
+        return "MACD"
+    if "adx" in c:
+        return "ADX"
+    if "bollinger" in c or "bant" in c:
+        if "ust" in c or "upper" in c:
+            return "BB_Upper"
+        if "alt" in c or "lower" in c:
+            return "BB_Lower"
+        return "BB_Middle"
+    # EMA (ussel) veya SMA (basit) hareketli ortalama
+    is_ema = "ussel" in c or "ema" in c
+    if "ortalama" in c or "ema" in c or "sma" in c or "ma " in c:
+        pm = re.search(r"(\d+)\s*gun", c)
+        period = int(pm.group(1)) if pm else (12 if is_ema else 50)
+        if is_ema:
+            return f"EMA_{_nearest(period, (12, 26, 50, 200))}"
+        return f"SMA_{_nearest(period, (20, 50, 100, 200))}"
+    if "fiyat" in c or "kapanis" in c:
+        return "price"
+    return None
+
+
+def _detect_operator(clause: str) -> Optional[str]:
+    c = clause
+    if "yukari kes" in c or "yukari kir" in c or "yukari gec" in c:
+        return "crosses_above"
+    if "asagi kes" in c or "asagi kir" in c:
+        return "crosses_below"
+    if "dokun" in c or "esit" in c:
+        return "equals"
+    if "alt" in c or "asagi" in c or "dus" in c or "az" in c or "kucuk" in c or "inince" in c or "iner" in c:
+        return "less_than"
+    if "ust" in c or "uzer" in c or "yukar" in c or "gec" in c or "asar" in c or "fazla" in c or "buyuk" in c or "cik" in c:
+        return "greater_than"
+    return None
+
+
+def _detect_value(clause: str, indicator: str):
+    """Esik degerini bulur: once sayi, yoksa baska bir indikator referansi."""
+    nums = re.findall(r"\d+(?:[.,]\d+)?", clause)
+    # Periyot olarak kullanilan sayiyi (orn. '50 gunluk') deger sanma:
+    period_nums = set(re.findall(r"(\d+)\s*gun", clause))
+    for n in nums:
+        if n not in period_nums:
+            return float(n.replace(",", "."))
+    # Sayi yoksa: cumlecikte gecen ikinci bir seriye gore karsilastirma
+    if "ortalama" in clause and not indicator.startswith(("SMA", "EMA")):
+        pm = re.search(r"(\d+)\s*gun", clause)
+        period = int(pm.group(1)) if pm else 50
+        return f"SMA_{_nearest(period, (20, 50, 100, 200))}"
+    if "sinyal" in clause:
+        return "MACD_Signal"
+    if "alt band" in clause or ("bollinger" in clause and "alt" in clause):
+        return "BB_Lower"
+    if "ust band" in clause or ("bollinger" in clause and "ust" in clause):
+        return "BB_Upper"
+    return None
+
+
+def local_parse(text: str) -> TradingRule:
+    """Gemini olmadan, regex ile temel bir TradingRule cikarir."""
+    raw = text.strip()
+    norm = _norm(raw)
+
+    asset = _detect_asset(raw, norm)
+    if not asset:
+        raise NLPParserError(
+            "Yerel cozucu metinden bir hisse/emtia cikaramadi. "
+            "Sembolu acikca yazin (orn. THYAO) veya Gemini'yi etkinlestirin."
+        )
+
+    action = "SELL" if re.search(r"\bsat\b|satim|sat\.", norm) else "BUY"
+
+    # Cumleyi 've' / virgul ile cumleciklere bol, her birinden bir kosul cikar
+    clauses = re.split(r"\bve\b|,|;", norm)
+    conditions = []
+    for cl in clauses:
+        ind = _detect_indicator(cl)
+        if not ind:
+            continue
+        op = _detect_operator(cl)
+        if not op:
+            continue
+        val = _detect_value(cl, ind)
+        # "X gunluk ortalamanin altina/ustune" gibi kaliplari "price vs MA" olarak yorumla:
+        # indikator bir hareketli ortalama ama esik degeri yoksa, ozne fiyattir.
+        if val is None and ind.startswith(("SMA", "EMA")):
+            val = ind
+            ind = "price"
+        if val is None:
+            continue
+        conditions.append({"indicator": ind, "operator": op, "value": val})
+
+    if not conditions:
+        raise NLPParserError(
+            "Yerel cozucu metinden bir kosul cikaramadi. "
+            "Daha acik yazin (orn. 'RSI 30 altina dusunce') veya Gemini'yi etkinlestirin."
+        )
+
+    return TradingRule(asset=asset, conditions=conditions, action=action)
+
+
 class BISTRuleParser:
     """Turkce ticaret talimatlarini TradingRule nesnesine ceviren servis."""
+
+    # Cozulen kurallarin diske kaydedildigi kalici onbellek dosyasi.
+    _CACHE_PATH = Path(__file__).with_name("rule_cache.json")
 
     def __init__(
         self,
@@ -172,32 +355,46 @@ class BISTRuleParser:
     ) -> None:
         load_dotenv()
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        if not self.api_key:
-            raise NLPParserError(
-                "GEMINI_API_KEY bulunamadi. .env dosyasina ekleyin."
-            )
         self.model = model
-        self.client = genai.Client(api_key=self.api_key)
-        # Ayni metin tekrar gelirse Gemini'yi (ve kotayi) bos yere harcamamak icin onbellek.
-        self._cache: dict[str, TradingRule] = {}
+        # Anahtar yoksa LLM'siz (yalnizca yerel cozucu) modda calis.
+        self.client = genai.Client(api_key=self.api_key) if self.api_key else None
+        # Bellek-ici + diskten yuklenen kalici onbellek.
+        self._cache: dict[str, TradingRule] = self._load_cache()
 
-    def parse(self, text: str, use_cache: bool = True) -> TradingRule:
-        """Verilen Turkce metni yapilandirilmis bir TradingRule'a cevirir."""
-        if not text or not text.strip():
-            raise NLPParserError("Bos metin ayristirilamaz.")
+    @property
+    def has_llm(self) -> bool:
+        return self.client is not None
 
-        key = text.strip().lower()
-        if use_cache and key in self._cache:
-            return self._cache[key]
+    # ------------------------------------------------------------------ #
+    # Kalici onbellek (disk)
+    # ------------------------------------------------------------------ #
+    def _load_cache(self) -> dict:
+        try:
+            data = json.loads(self._CACHE_PATH.read_text(encoding="utf-8"))
+            return {k: TradingRule.model_validate(v) for k, v in data.items()}
+        except Exception:
+            return {}
 
-        # Gecici hatalarda (503 yogunluk / 429 kota) ustel bekleme ile yeniden dene.
+    def _save_cache(self) -> None:
+        try:
+            data = {k: v.model_dump(mode="json") for k, v in self._cache.items()}
+            self._CACHE_PATH.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception:
+            pass  # onbellek yazimi kritik degil; sessizce gec
+
+    # ------------------------------------------------------------------ #
+    # Gemini cagrisi
+    # ------------------------------------------------------------------ #
+    def _call_gemini(self, text: str) -> TradingRule:
         max_retries = 3
         response = None
         for attempt in range(max_retries):
             try:
                 response = self.client.models.generate_content(
                     model=self.model,
-                    contents=text.strip(),
+                    contents=text,
                     config=types.GenerateContentConfig(
                         system_instruction=SYSTEM_PROMPT,
                         response_mime_type="application/json",
@@ -210,24 +407,49 @@ class BISTRuleParser:
                 msg = str(exc)
                 transient = any(s in msg for s in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "overloaded"))
                 if transient and attempt < max_retries - 1:
-                    wait = 2 ** attempt  # 1s, 2s, 4s
-                    time.sleep(wait)
+                    time.sleep(2 ** attempt)  # 1s, 2s, 4s
                     continue
                 raise NLPParserError(f"Gemini API hatasi: {exc}") from exc
 
-        # google-genai, response_schema verildiginde .parsed icinde
-        # dogrudan Pydantic nesnesini dondurur.
         rule = response.parsed
         if rule is None:
-            # Yedek: ham metni Pydantic ile dogrula.
             try:
                 rule = TradingRule.model_validate_json(response.text)
             except Exception as exc:
                 raise NLPParserError(
                     f"Model ciktisi semaya uymuyor: {exc}\nHam cikti: {response.text}"
                 ) from exc
+        return rule
 
-        self._cache[key] = rule  # onbellege yaz
+    def parse(self, text: str, use_cache: bool = True, prefer: str = "auto") -> TradingRule:
+        """
+        Turkce metni TradingRule'a cevirir.
+        Oncelik:  kalici onbellek -> Gemini (varsa) -> yerel regex cozucu.
+        prefer="local" verilirse Gemini hic denenmez (kota korunur).
+        """
+        if not text or not text.strip():
+            raise NLPParserError("Bos metin ayristirilamaz.")
+
+        key = text.strip().lower()
+        if use_cache and key in self._cache:
+            return self._cache[key]
+
+        rule: Optional[TradingRule] = None
+
+        # 1) Gemini (istenirse ve mumkunse)
+        if prefer != "local" and self.has_llm:
+            try:
+                rule = self._call_gemini(text.strip())
+            except NLPParserError:
+                rule = None  # asagida yerel cozucuye dus
+
+        # 2) Yerel regex cozucu (Gemini yoksa/basarisizsa)
+        if rule is None:
+            rule = local_parse(text)  # cikaramazsa NLPParserError firlatir
+
+        # Onbellege yaz (bellek + disk)
+        self._cache[key] = rule
+        self._save_cache()
         return rule
 
     def parse_to_json(self, text: str, indent: int = 2) -> str:
