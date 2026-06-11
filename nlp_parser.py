@@ -22,6 +22,7 @@ Kullanim:
 from __future__ import annotations
 
 import os
+import time
 from enum import Enum
 from typing import List, Union
 
@@ -60,12 +61,19 @@ class Condition(BaseModel):
     """Tek bir teknik kosul."""
     indicator: str = Field(
         ...,
-        description="Indikator adi: RSI, SMA_50, SMA_200, MACD, price vb.",
+        description=(
+            "Indikator adi. Gecerli degerler: price, open, high, low, RSI, STOCH_K, "
+            "STOCH_D, SMA_20, SMA_50, SMA_100, SMA_200, EMA_12, EMA_26, EMA_50, EMA_200, "
+            "MACD, MACD_Signal, MACD_Hist, ADX, BB_Upper, BB_Middle, BB_Lower, volume, Volume_SMA."
+        ),
     )
     operator: Operator = Field(..., description="Karsilastirma operatoru.")
     value: Union[float, str] = Field(
         ...,
-        description="Esik degeri. Sayi (orn. 30) veya 'price' gibi bir referans olabilir.",
+        description=(
+            "Esik degeri. Sayisal esik ise sayi (orn. 30); baska bir seriye gore "
+            "karsilastirma ise o indikatorun adi (orn. 'SMA_50', 'MACD_Signal', 'price')."
+        ),
     )
 
 
@@ -82,31 +90,68 @@ class TradingRule(BaseModel):
 # System prompt
 # ---------------------------------------------------------------------- #
 SYSTEM_PROMPT = """\
-Sen bir finansal kural ayristirma (parsing) asistanisin. Gorevin, kullanicinin
+Sen uzman bir finansal kural ayristirma (parsing) asistanisin. Gorevin, kullanicinin
 Turkce dogal dilde yazdigi ticaret talimatini, verilen JSON semasina uygun
-yapilandirilmis bir kurala cevirmektir.
+yapilandirilmis bir kurala cevirmektir. Kullanici eksik/gunluk konusma diliyle yazsa
+bile niyetini cikar ve en yakin gecerli indikator/operatore esle.
 
-KESIN KURALLAR:
-1. BIST 100 hisseleri istendiginde sembolun sonuna mutlaka ".IS" ekle.
-   Ornek: "THYAO" -> "THYAO.IS", "ASELS" -> "ASELS.IS".
-   Emtialar icin yfinance sembollerini kullan: Gumus -> "SI=F", Altin -> "GC=F",
-   Ham petrol -> "CL=F".
-2. Indikatorleri standart adlandirmayla yaz:
-   - RSI            -> "RSI"
-   - 50 gunluk SMA  -> "SMA_50"
-   - 200 gunluk SMA -> "SMA_200"
-   - MACD           -> "MACD"
-   - Fiyatin kendisi -> "price"
-3. Operatorler yalnizca sunlar olabilir:
-   less_than, greater_than, crosses_above, crosses_below, equals.
-   - "altina duser/dusunce"        -> less_than
-   - "ustune cikar/gecince"        -> greater_than
-   - "yukari keser/yukari kesince" -> crosses_above
-   - "asagi keser/asagi kesince"   -> crosses_below
-4. "value" sayisal bir esikse sayi olarak (orn. 30), baska bir seriye gore
-   kesisim ise "price" gibi bir referans string olarak yazilir.
-5. "al" -> BUY, "sat" -> SELL, belirsizse -> HOLD.
-6. Yalnizca semaya uygun ciktiyi uret; aciklama veya ekstra metin EKLEME.
+== 1) SEMBOL ==
+- BIST hisseleri: sonuna ".IS" ekle. Ornek: THYAO->THYAO.IS, ASELS->ASELS.IS,
+  GARAN->GARAN.IS, "Turk Hava Yollari"->THYAO.IS, "Garanti"->GARAN.IS, "Aselsan"->ASELS.IS.
+- Emtialar (yfinance): Gumus->SI=F, Altin->GC=F, Ham petrol->CL=F, Bakir->HG=F,
+  Dogalgaz->NG=F, Bitcoin->BTC-USD, Dolar/TL->TRY=X.
+
+== 2) INDIKATORLER (yalnizca bu adlari kullan) ==
+Fiyat:        price (kapanis), open, high, low
+Momentum:     RSI, STOCH_K, STOCH_D
+Hareketli ort: SMA_20, SMA_50, SMA_100, SMA_200, EMA_12, EMA_26, EMA_50, EMA_200
+MACD:         MACD (cizgi), MACD_Signal (sinyal cizgisi), MACD_Hist (histogram)
+Trend gucu:   ADX
+Bollinger:    BB_Upper, BB_Middle, BB_Lower
+Hacim:        volume, Volume_SMA (hacim ortalamasi)
+
+Turkce -> indikator esleme ornekleri:
+- "RSI", "goreli guc endeksi"                 -> RSI
+- "50 gunluk ortalama/hareketli ortalama"     -> SMA_50
+- "200 gunluk ortalama"                       -> SMA_200
+- "20 gunluk ussel/EMA ortalama"              -> EMA_12 veya EMA_26 (en yakin)
+- "stokastik"                                 -> STOCH_K
+- "MACD sinyal cizgisini keserse"             -> MACD ve MACD_Signal
+- "bollinger ust/alt bandi"                   -> BB_Upper / BB_Lower
+- "hacim ortalamanin uzerine cikinca"         -> volume vs Volume_SMA
+- "ADX 25 uzerindeyse (trend guclu)"          -> ADX
+ONEMLI: Listede olmayan bir periyot istenirse (orn. "30 gunluk") EN YAKIN mevcut
+periyodu sec (30 -> SMA_20 veya SMA_50). Asla listede olmayan bir ad uretme.
+
+== 3) OPERATORLER (yalnizca bunlar) ==
+less_than, greater_than, crosses_above, crosses_below, equals
+- "altina duser/inerse/dusunce", "X'ten az/kucuk"     -> less_than
+- "ustune cikar/gecince/asarsa", "X'ten fazla/buyuk"  -> greater_than
+- "yukari keser/yukari kesince", "yukari kirar"        -> crosses_above
+- "asagi keser/asagi kesince", "asagi kirar"           -> crosses_below
+- "esit olunca/dokununca"                              -> equals
+
+== 4) VALUE ALANI ==
+- Sayisal esik ise SAYI yaz: RSI<30 -> value: 30.
+- Baska bir seriye gore karsilastirma/kesisim ise o indikatorun ADINI string yaz:
+  "fiyat 50 gunluk ortalamayi yukari keserse" -> {indicator:"price", operator:"crosses_above", value:"SMA_50"}
+  "MACD sinyal cizgisini yukari keserse"      -> {indicator:"MACD", operator:"crosses_above", value:"MACD_Signal"}
+
+== 5) COKLU KOSUL ==
+Cumlede "ve", "ayrica", "hem ... hem" varsa her kosulu ayri bir condition olarak ekle
+(hepsi AND ile birlesir). Ornek: "RSI 30 altinda VE fiyat SMA50 ustunde" -> 2 condition.
+
+== 6) ISLEM (action) ==
+"al/alim/long" -> BUY, "sat/satim/short/cik" -> SELL, belirsizse -> HOLD.
+
+== 7) CIKTI ==
+Yalnizca semaya uygun JSON uret; aciklama, yorum veya ekstra metin EKLEME.
+
+ORNEK:
+Girdi: "RSI 30'un altina dustugunde ve fiyat 50 gunluk ortalamanin uzerindeyse GARAN al."
+Cikti: {"asset":"GARAN.IS","conditions":[
+  {"indicator":"RSI","operator":"less_than","value":30},
+  {"indicator":"price","operator":"greater_than","value":"SMA_50"}],"action":"BUY"}
 """
 
 
@@ -145,19 +190,30 @@ class BISTRuleParser:
         if use_cache and key in self._cache:
             return self._cache[key]
 
-        try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=text.strip(),
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    response_mime_type="application/json",
-                    response_schema=TradingRule,
-                    temperature=0.0,
-                ),
-            )
-        except Exception as exc:
-            raise NLPParserError(f"Gemini API hatasi: {exc}") from exc
+        # Gecici hatalarda (503 yogunluk / 429 kota) ustel bekleme ile yeniden dene.
+        max_retries = 3
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=text.strip(),
+                    config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_PROMPT,
+                        response_mime_type="application/json",
+                        response_schema=TradingRule,
+                        temperature=0.0,
+                    ),
+                )
+                break
+            except Exception as exc:
+                msg = str(exc)
+                transient = any(s in msg for s in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "overloaded"))
+                if transient and attempt < max_retries - 1:
+                    wait = 2 ** attempt  # 1s, 2s, 4s
+                    time.sleep(wait)
+                    continue
+                raise NLPParserError(f"Gemini API hatasi: {exc}") from exc
 
         # google-genai, response_schema verildiginde .parsed icinde
         # dogrudan Pydantic nesnesini dondurur.

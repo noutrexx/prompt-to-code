@@ -22,8 +22,9 @@ from typing import Dict, Optional, Tuple
 
 import pandas as pd
 import yfinance as yf
-from ta.momentum import RSIIndicator
-from ta.trend import MACD, SMAIndicator
+from ta.momentum import RSIIndicator, StochasticOscillator
+from ta.trend import ADXIndicator, EMAIndicator, MACD, SMAIndicator
+from ta.volatility import BollingerBands
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -94,37 +95,66 @@ class MarketDataFetcher:
     # 2) Teknik indikatorler
     # ------------------------------------------------------------------ #
     def add_indicators(self) -> pd.DataFrame:
-        """RSI(14), MACD(12,26,9), SMA(50), SMA(200) kolonlarini ekler."""
+        """
+        Genis bir teknik indikator seti ekler:
+        RSI, SMA (20/50/100/200), EMA (12/26/50/200), MACD,
+        Bollinger Bantlari, Stochastic, ADX ve hacim ortalamasi.
+        """
         if self.df is None:
             raise MarketDataError("Once fetch() cagrilmalidir.")
 
-        close = self.df["Close"]
+        df = self.df
+        close, high, low, vol = df["Close"], df["High"], df["Low"], df["Volume"]
 
-        # RSI (14)
-        self.df["RSI_14"] = RSIIndicator(close=close, window=14).rsi()
+        # --- Momentum ---
+        df["RSI_14"] = RSIIndicator(close=close, window=14).rsi()
+
+        stoch = StochasticOscillator(high=high, low=low, close=close, window=14, smooth_window=3)
+        df["STOCH_K"] = stoch.stoch()          # %K
+        df["STOCH_D"] = stoch.stoch_signal()   # %D
+
+        # --- Trend: SMA / EMA ---
+        for w in (20, 50, 100, 200):
+            df[f"SMA_{w}"] = SMAIndicator(close=close, window=w).sma_indicator()
+        for w in (12, 26, 50, 200):
+            df[f"EMA_{w}"] = EMAIndicator(close=close, window=w).ema_indicator()
 
         # MACD (12, 26, 9)
         macd = MACD(close=close, window_slow=26, window_fast=12, window_sign=9)
-        self.df["MACD"] = macd.macd()
-        self.df["MACD_Signal"] = macd.macd_signal()
-        self.df["MACD_Hist"] = macd.macd_diff()
+        df["MACD"] = macd.macd()
+        df["MACD_Signal"] = macd.macd_signal()
+        df["MACD_Hist"] = macd.macd_diff()
 
-        # SMA (50) ve SMA (200)
-        self.df["SMA_50"] = SMAIndicator(close=close, window=50).sma_indicator()
-        self.df["SMA_200"] = SMAIndicator(close=close, window=200).sma_indicator()
+        # ADX (trend gucu)
+        df["ADX_14"] = ADXIndicator(high=high, low=low, close=close, window=14).adx()
 
+        # --- Volatilite: Bollinger Bantlari (20, 2) ---
+        bb = BollingerBands(close=close, window=20, window_dev=2)
+        df["BB_Upper"] = bb.bollinger_hband()
+        df["BB_Middle"] = bb.bollinger_mavg()
+        df["BB_Lower"] = bb.bollinger_lband()
+
+        # --- Hacim ---
+        df["Volume_SMA_20"] = SMAIndicator(close=vol, window=20).sma_indicator()
+
+        self.df = df
         return self.df
 
     # ------------------------------------------------------------------ #
     # 3) Null temizleme
     # ------------------------------------------------------------------ #
     def clean(self) -> pd.DataFrame:
-        """NaN iceren satirlari temizler."""
+        """
+        Yalnizca fiyat (OHLC) verisi eksik satirlari atar.
+        Indikator isinma (warm-up) NaN'lari KORUNUR; cunku backtest motoru
+        kosul degerlendirirken NaN'i otomatik olarak 'saglanmadi' (False) sayar.
+        Boylece sadece kisa indikator kullanan stratejiler tum veriyi kullanir.
+        """
         if self.df is None:
             raise MarketDataError("Temizlenecek veri yok. Once fetch() cagrilmalidir.")
         before = len(self.df)
-        self.df = self.df.dropna()
-        logger.info("Temizleme: %d -> %d satir.", before, len(self.df))
+        self.df = self.df.dropna(subset=["Open", "High", "Low", "Close"])
+        logger.info("Temizleme (sadece OHLC): %d -> %d satir.", before, len(self.df))
         return self.df
 
     # ------------------------------------------------------------------ #

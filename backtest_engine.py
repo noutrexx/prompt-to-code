@@ -35,17 +35,26 @@ class BacktestError(Exception):
 class Backtester:
     """Bir kural seti ile DataFrame uzerinde gecmise donuk simulasyon yapar."""
 
-    # nlp_parser indikator adi -> DataFrame kolon adi eslemesi
+    # nlp_parser indikator adi -> DataFrame kolon adi eslemesi (buyuk harf anahtarlar)
     INDICATOR_MAP = {
-        "RSI": "RSI_14",
-        "RSI_14": "RSI_14",
-        "SMA_50": "SMA_50",
-        "SMA_200": "SMA_200",
-        "MACD": "MACD",
-        "MACD_SIGNAL": "MACD_Signal",
-        "MACD_HIST": "MACD_Hist",
-        "PRICE": "Close",
-        "CLOSE": "Close",
+        # Fiyat
+        "PRICE": "Close", "CLOSE": "Close", "OPEN": "Open", "HIGH": "High", "LOW": "Low",
+        # Momentum
+        "RSI": "RSI_14", "RSI_14": "RSI_14",
+        "STOCH": "STOCH_K", "STOCH_K": "STOCH_K", "STOCH_D": "STOCH_D",
+        # Trend: SMA / EMA
+        "SMA": "SMA_50",
+        "SMA_20": "SMA_20", "SMA_50": "SMA_50", "SMA_100": "SMA_100", "SMA_200": "SMA_200",
+        "EMA": "EMA_50",
+        "EMA_12": "EMA_12", "EMA_26": "EMA_26", "EMA_50": "EMA_50", "EMA_200": "EMA_200",
+        # MACD
+        "MACD": "MACD", "MACD_SIGNAL": "MACD_Signal", "MACD_HIST": "MACD_Hist",
+        # ADX
+        "ADX": "ADX_14", "ADX_14": "ADX_14",
+        # Bollinger
+        "BB_UPPER": "BB_Upper", "BB_MIDDLE": "BB_Middle", "BB_LOWER": "BB_Lower",
+        # Hacim
+        "VOLUME": "Volume", "VOLUME_SMA": "Volume_SMA_20", "VOLUME_SMA_20": "Volume_SMA_20",
     }
 
     def __init__(

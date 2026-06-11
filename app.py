@@ -110,8 +110,8 @@ def _derive_exit_rule(buy_rule: Dict[str, Any]) -> Dict[str, Any]:
     for cond in buy_rule.get("conditions", []):
         value = cond["value"]
         indicator = str(cond["indicator"]).upper()
-        # RSI esikleri 0-100 arasinda oldugundan aynalama anlamli.
-        if indicator.startswith("RSI") and isinstance(value, (int, float)):
+        # RSI / Stochastic 0-100 arasinda osilator oldugundan esik aynalanir (orn. 35 -> 65).
+        if (indicator.startswith("RSI") or indicator.startswith("STOCH")) and isinstance(value, (int, float)):
             value = 100 - value
         exit_conditions.append({
             "indicator": cond["indicator"],
