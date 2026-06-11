@@ -4,210 +4,230 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prompt-to-Code · Strategy Backtest</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0716'/%3E%3Crect width='64' height='64' fill='none' stroke='%234d7cfe' stroke-width='4'/%3E%3Cpath d='M14 22 L23 32 L14 42' fill='none' stroke='%2338e1ff' stroke-width='4'/%3E%3Crect x='30' y='34' width='5' height='14' fill='%234d7cfe'/%3E%3Crect x='39' y='26' width='5' height='22' fill='%23a855f7'/%3E%3Crect x='48' y='18' width='5' height='30' fill='%2338e1ff'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
   <!-- TradingView Lightweight Charts (CDN) -->
   <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 
   <style>
     :root {
-      --bg: #0a0e17;
-      --bg-2: #0e1320;
-      --panel: rgba(22, 27, 40, 0.7);
-      --panel-solid: #161b28;
-      --border: rgba(120, 140, 180, 0.14);
-      --text: #e7edf6;
-      --muted: #8a96ac;
-      --accent: #5b8cff;
-      --accent-2: #7b5bff;
+      --bg-0: #04060d;
+      --bg-1: #070b16;
+      --panel: rgba(12, 17, 30, 0.55);
+      --panel-2: rgba(8, 12, 22, 0.55);
+      --line: rgba(255, 255, 255, 0.07);
+      --line-strong: rgba(255, 255, 255, 0.14);
+      --text: #e9eef8;
+      --muted: #7c8aa6;
+      --faint: #56627d;
+      --accent: #4d7cfe;
+      --accent-2: #a855f7;
+      --cyan: #38e1ff;
       --green: #2ebd85;
       --red: #f6465d;
-      --yellow: #f0b90b;
-      --purple: #b07bff;
-      --radius: 16px;
+      --gold: #ffb454;
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
-      font-family: -apple-system, "Segoe UI", Inter, Roboto, system-ui, sans-serif;
+      font-family: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(1200px 600px at 15% -10%, rgba(91,140,255,0.10), transparent 60%),
-        radial-gradient(1000px 500px at 90% 0%, rgba(123,91,255,0.10), transparent 55%),
-        var(--bg);
+        radial-gradient(1100px 620px at 12% -8%, rgba(77,124,254,0.18), transparent 58%),
+        radial-gradient(1000px 560px at 92% 4%, rgba(168,85,247,0.16), transparent 55%),
+        radial-gradient(900px 700px at 60% 110%, rgba(56,225,255,0.08), transparent 60%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-0));
       min-height: 100vh;
-      padding: 28px 20px 48px;
       -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
     }
-    .container { max-width: 1340px; margin: 0 auto; }
+
+    /* ---------- Background art (transparent, behind everything) ---------- */
+    .bg-art {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+    }
+    .bg-art svg { position: absolute; bottom: -2%; left: 0; width: 100%; height: 78%; }
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 46px 46px;
+      mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
+    }
+
+    .wrap { position: relative; z-index: 1; max-width: 1360px; margin: 0 auto; padding: 30px 22px 60px; }
 
     /* ---------- Header ---------- */
-    .hero {
-      display: flex; align-items: center; gap: 16px;
-      margin-bottom: 24px;
-    }
-    .logo {
-      width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    .hero { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+    .logo-badge {
+      width: 50px; height: 50px; flex-shrink: 0; position: relative;
+      background: linear-gradient(150deg, rgba(77,124,254,0.18), rgba(168,85,247,0.14));
+      border: 1px solid var(--line-strong);
       display: grid; place-items: center;
-      box-shadow: 0 8px 30px rgba(91,140,255,0.35);
+      box-shadow: 0 0 30px rgba(77,124,254,0.25), inset 0 0 20px rgba(77,124,254,0.08);
     }
-    .hero h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
-    .hero .sub { color: var(--muted); font-size: 13.5px; margin-top: 3px; }
+    .logo-badge::after { content: ""; position: absolute; inset: 0; border-top: 2px solid var(--cyan); opacity: 0.9; }
+    .hero h1 { font-size: 23px; font-weight: 800; letter-spacing: -0.4px; }
+    .hero h1 .grad {
+      background: linear-gradient(92deg, #cfe0ff, var(--accent) 45%, var(--accent-2));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero .sub { color: var(--muted); font-size: 13px; margin-top: 4px; letter-spacing: 0.1px; }
+    .badge-live {
+      margin-left: auto; display: flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--muted); border: 1px solid var(--line); padding: 7px 12px;
+      background: var(--panel-2); backdrop-filter: blur(8px);
+    }
+    .badge-live .dot { width: 7px; height: 7px; background: var(--green); box-shadow: 0 0 10px var(--green); }
 
-    /* ---------- Strategy composer ---------- */
-    .composer {
-      background: var(--panel);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px;
-      margin-bottom: 22px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    /* ---------- Glass card base ---------- */
+    .card { position: relative; background: var(--panel); backdrop-filter: blur(16px); border: 1px solid var(--line); }
+    .card::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), transparent);
+      opacity: 0.8;
     }
+
+    /* ---------- Composer ---------- */
+    .composer { padding: 20px; margin-bottom: 24px; }
     .input-row { display: flex; gap: 12px; }
-    .input-wrap { position: relative; flex: 1; }
-    .input-wrap .ic {
-      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-      color: var(--muted); pointer-events: none; display: flex;
-    }
+    .input-wrap { position: relative; flex: 1; display: flex; align-items: center; }
+    .input-wrap .ic { position: absolute; left: 15px; color: var(--accent); display: flex; }
     .input-row input {
-      width: 100%;
-      background: rgba(10,14,23,0.6);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 12px;
-      padding: 14px 14px 14px 42px;
-      font-size: 14.5px; outline: none;
-      transition: border-color .15s, box-shadow .15s;
+      width: 100%; background: rgba(4,6,13,0.6); border: 1px solid var(--line-strong);
+      color: var(--text); padding: 15px 16px 15px 44px; font-size: 14.5px; outline: none;
+      font-family: "Inter", sans-serif; transition: border-color .15s, box-shadow .15s, background .15s;
     }
-    .input-row input::placeholder { color: #5c6779; }
-    .input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,0.15); }
+    .input-row input::placeholder { color: var(--faint); }
+    .input-row input:focus {
+      border-color: var(--accent); background: rgba(4,6,13,0.85);
+      box-shadow: 0 0 0 1px var(--accent), 0 0 24px rgba(77,124,254,0.22);
+    }
     .btn-run {
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #fff; border: none; border-radius: 12px;
-      padding: 0 26px; font-size: 14.5px; font-weight: 700; cursor: pointer;
-      display: flex; align-items: center; gap: 9px;
-      transition: transform .12s, opacity .15s, box-shadow .15s;
-      box-shadow: 0 8px 24px rgba(91,140,255,0.30);
+      background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border: none;
+      padding: 0 30px; font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      cursor: pointer; display: flex; align-items: center; gap: 10px;
+      transition: transform .12s, box-shadow .15s, filter .15s;
+      box-shadow: 0 0 28px rgba(77,124,254,0.35);
     }
-    .btn-run:hover:not(:disabled) { transform: translateY(-1px); }
-    .btn-run:disabled { opacity: .6; cursor: not-allowed; }
-    .spinner {
-      width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.4);
-      border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite;
-      display: none;
-    }
+    .btn-run:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+    .btn-run:disabled { opacity: .55; cursor: not-allowed; }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Example strategy chips */
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-    .chips .lbl { color: var(--muted); font-size: 12.5px; align-self: center; margin-right: 2px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .chips .lbl { color: var(--faint); font-family: var(--mono); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; align-self: center; margin-right: 4px; }
     .chip {
-      background: rgba(91,140,255,0.10); color: #aec4ff;
-      border: 1px solid rgba(91,140,255,0.22);
-      border-radius: 999px; padding: 6px 13px; font-size: 12.5px; cursor: pointer;
-      transition: background .15s, transform .1s;
+      background: rgba(77,124,254,0.07); color: #aec4ff; border: 1px solid rgba(77,124,254,0.22);
+      padding: 7px 13px; font-size: 12px; cursor: pointer; transition: background .15s, border-color .15s, transform .1s;
     }
-    .chip:hover { background: rgba(91,140,255,0.20); transform: translateY(-1px); }
+    .chip:hover { background: rgba(77,124,254,0.16); border-color: var(--accent); transform: translateY(-1px); }
 
     /* ---------- Layout ---------- */
-    .layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
-    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+    .layout { display: grid; grid-template-columns: 1fr 350px; gap: 20px; align-items: start; }
+    @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
 
-    .card {
-      background: var(--panel);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
-    }
-    .card-head {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 18px; border-bottom: 1px solid var(--border);
-    }
-    .card-head h2 { font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
+    .card-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--line); }
+    .card-head h2 { font-family: var(--mono); font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; }
 
-    /* Chart tabs */
-    .tabs { display: flex; gap: 4px; background: rgba(10,14,23,0.5); padding: 4px; border-radius: 10px; }
-    .tab {
-      border: none; background: transparent; color: var(--muted);
-      padding: 6px 14px; font-size: 12.5px; font-weight: 600; border-radius: 7px; cursor: pointer;
-      transition: all .15s;
-    }
-    .tab.active { background: rgba(91,140,255,0.18); color: #cfe0ff; }
-    .chart-box { padding: 14px; }
-    #chartPrice, #chartEquity { width: 100%; height: 470px; }
+    .tabs { display: flex; gap: 0; border: 1px solid var(--line); }
+    .tab { border: none; background: transparent; color: var(--muted); padding: 7px 15px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; border-right: 1px solid var(--line); }
+    .tab:last-child { border-right: none; }
+    .tab.active { background: linear-gradient(135deg, rgba(77,124,254,0.22), rgba(168,85,247,0.18)); color: #fff; }
+    .chart-box { padding: 16px; }
+    #chartPrice, #chartEquity { width: 100%; height: 480px; }
     #chartEquity { display: none; }
 
+    .legend { display: flex; gap: 16px; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+    .legend i { display: inline-block; width: 12px; height: 2px; margin-right: 6px; vertical-align: middle; }
+
     /* ---------- Sidebar ---------- */
-    .side { display: flex; flex-direction: column; gap: 18px; }
+    .side { display: flex; flex-direction: column; gap: 20px; }
+    .asset-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; }
+    .asset-name { font-family: var(--mono); font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+    .asset-tag { color: var(--faint); font-size: 11px; margin-top: 3px; letter-spacing: 0.3px; }
+    .pill { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 6px 13px; letter-spacing: 1px; border: 1px solid transparent; }
+    .pill.buy { background: rgba(46,189,133,0.12); color: var(--green); border-color: rgba(46,189,133,0.4); }
+    .pill.sell { background: rgba(246,70,93,0.12); color: var(--red); border-color: rgba(246,70,93,0.4); }
 
-    .asset-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; }
-    .asset-name { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
-    .asset-tag { color: var(--muted); font-size: 12px; margin-top: 2px; }
-    .pill { font-size: 11.5px; font-weight: 700; padding: 5px 11px; border-radius: 999px; }
-    .pill.buy { background: rgba(46,189,133,0.15); color: var(--green); }
-    .pill.sell { background: rgba(246,70,93,0.15); color: var(--red); }
-
-    /* Metric grid */
-    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
-    .stat {
-      background: rgba(10,14,23,0.45); border: 1px solid var(--border);
-      border-radius: 12px; padding: 13px 14px;
-    }
-    .stat .k { color: var(--muted); font-size: 11.5px; display: flex; align-items: center; gap: 6px; }
-    .stat .v { font-size: 22px; font-weight: 800; margin-top: 7px; letter-spacing: -0.5px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+    .stat { background: var(--bg-1); padding: 16px 18px; }
+    .stat .k { color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; }
+    .stat .v { font-family: var(--mono); font-size: 24px; font-weight: 700; margin-top: 9px; letter-spacing: -0.5px; }
     .v.green { color: var(--green); } .v.red { color: var(--red); }
     .stat.wide { grid-column: 1 / -1; }
-    .stat.wide .v { font-size: 18px; }
+    .stat.wide .v { font-size: 19px; }
 
-    /* Parsed rule */
-    .rule-box { padding: 16px 18px; }
-    .rule-box .t { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
-    .cond {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      font-size: 13px; padding: 8px 10px; background: rgba(10,14,23,0.45);
-      border: 1px solid var(--border); border-radius: 9px; margin-bottom: 7px;
-    }
-    .cond .badge { background: rgba(123,91,255,0.16); color: #c3b0ff; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
-    .cond .op { color: var(--muted); }
-    .cond .val { font-weight: 700; }
+    .rule-box { padding: 18px 20px; }
+    .rule-box .t { color: var(--muted); font-family: var(--mono); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+    .cond { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 13px; padding: 10px 12px; background: rgba(4,6,13,0.5); border: 1px solid var(--line); border-left: 2px solid var(--accent); margin-bottom: 8px; }
+    .cond .badge { font-family: var(--mono); background: rgba(168,85,247,0.14); color: #d6bcff; padding: 3px 9px; font-weight: 600; font-size: 11.5px; }
+    .cond .op { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+    .cond .val { font-family: var(--mono); font-weight: 700; }
 
-    .status { padding: 0 18px 16px; font-size: 12.5px; color: var(--muted); min-height: 16px; }
+    .status { padding: 0 20px 18px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); min-height: 16px; letter-spacing: 0.2px; }
     .status.error { color: var(--red); }
-
-    /* Empty state */
-    .empty { color: #5c6779; font-size: 13px; text-align: center; padding: 30px 16px; }
-
-    .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); }
-    .legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+    .empty { color: var(--faint); font-size: 13px; text-align: center; padding: 28px 16px; }
   </style>
 </head>
 <body>
-  <div class="container">
+  <!-- Background art layers -->
+  <div class="bg-grid"></div>
+  <div class="bg-art">
+    <svg viewBox="0 0 1440 600" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgline" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#4d7cfe"/><stop offset="1" stop-color="#a855f7"/>
+        </linearGradient>
+        <linearGradient id="bgfill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#4d7cfe" stop-opacity="0.10"/>
+          <stop offset="1" stop-color="#4d7cfe" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M0,430 C160,400 240,300 360,330 C500,365 560,250 720,270 C880,290 940,180 1080,210 C1220,240 1320,150 1440,180 L1440,600 L0,600 Z" fill="url(#bgfill)" opacity="0.7"/>
+      <path d="M0,430 C160,400 240,300 360,330 C500,365 560,250 720,270 C880,290 940,180 1080,210 C1220,240 1320,150 1440,180" fill="none" stroke="url(#bgline)" stroke-width="2" opacity="0.20"/>
+      <g opacity="0.05" fill="#9fb4e0">
+        <rect x="120" y="440" width="14" height="60"/><rect x="180" y="420" width="14" height="70"/>
+        <rect x="240" y="455" width="14" height="50"/><rect x="300" y="400" width="14" height="80"/>
+        <rect x="700" y="360" width="14" height="70"/><rect x="760" y="340" width="14" height="60"/>
+        <rect x="820" y="375" width="14" height="55"/><rect x="1080" y="300" width="14" height="75"/>
+        <rect x="1140" y="280" width="14" height="60"/><rect x="1200" y="310" width="14" height="50"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="wrap">
     <!-- Header -->
     <div class="hero">
-      <div class="logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <line x1="7" y1="4" x2="7" y2="20" stroke="#fff" stroke-width="1.6"/>
-          <rect x="4.5" y="8" width="5" height="8" rx="1.2" fill="#fff"/>
-          <line x1="16" y1="3" x2="16" y2="19" stroke="#fff" stroke-width="1.6" opacity="0.85"/>
-          <rect x="13.5" y="6" width="5" height="6" rx="1.2" fill="#fff" opacity="0.85"/>
+      <div class="logo-badge">
+        <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+          <path d="M6 9 L11 16 L6 23" stroke="#38e1ff" stroke-width="2.4" stroke-linecap="square"/>
+          <rect x="15" y="17" width="3.4" height="9" fill="#4d7cfe"/>
+          <rect x="20.5" y="12" width="3.4" height="14" fill="#a855f7"/>
+          <rect x="26" y="7" width="3.4" height="19" fill="#38e1ff"/>
         </svg>
       </div>
       <div>
-        <h1>Prompt-to-Code · Strategy Backtest</h1>
-        <div class="sub">Describe a strategy in plain language — it is parsed into rules and backtested on historical data. English &amp; Turkish supported.</div>
+        <h1><span class="grad">Prompt-to-Code</span> · Strategy Backtest</h1>
+        <div class="sub">Describe a strategy in plain language — parsed into rules and backtested on real data. English &amp; Turkish.</div>
       </div>
+      <div class="badge-live"><span class="dot"></span> Live</div>
     </div>
 
-    <!-- Strategy composer -->
-    <div class="composer">
+    <!-- Composer -->
+    <div class="card composer">
       <div class="input-row">
         <div class="input-wrap">
           <span class="ic">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <path d="M4 7 L9 12 L4 17"/><line x1="12" y1="17" x2="19" y2="17"/>
             </svg>
           </span>
           <input id="strategyInput" type="text"
@@ -220,7 +240,7 @@
         </button>
       </div>
       <div class="chips" id="chips">
-        <span class="lbl">Examples:</span>
+        <span class="lbl">Try</span>
         <span class="chip">Buy ASELS when RSI drops below 30</span>
         <span class="chip">Buy GARAN when price crosses above SMA50</span>
         <span class="chip">Buy THYAO when MACD crosses above its signal line</span>
@@ -230,18 +250,18 @@
 
     <!-- Results -->
     <div class="layout">
-      <!-- Chart card -->
+      <!-- Chart -->
       <div class="card">
         <div class="card-head">
           <h2>Chart</h2>
-          <div style="display:flex; align-items:center; gap:14px;">
+          <div style="display:flex; align-items:center; gap:16px;">
             <div class="legend">
-              <span><i style="background:#f0b90b"></i>SMA50</span>
-              <span><i style="background:#b07bff"></i>SMA200</span>
+              <span><i style="background:#ffb454"></i>SMA50</span>
+              <span><i style="background:#a855f7"></i>SMA200</span>
             </div>
             <div class="tabs">
               <button class="tab active" data-tab="price">Price &amp; Signals</button>
-              <button class="tab" data-tab="equity">Equity Curve</button>
+              <button class="tab" data-tab="equity">Equity</button>
             </div>
           </div>
         </div>
@@ -257,36 +277,20 @@
           <div class="asset-row">
             <div>
               <div class="asset-name" id="assetName">—</div>
-              <div class="asset-tag">Backtest · 2 years · 0.1% commission</div>
+              <div class="asset-tag">BACKTEST · 2Y · 0.1% COMMISSION</div>
             </div>
             <span class="pill buy" id="actionPill" style="display:none;">BUY</span>
           </div>
           <div class="stats">
-            <div class="stat">
-              <div class="k">Total P/L</div>
-              <div class="v" id="mPnl">—</div>
-            </div>
-            <div class="stat">
-              <div class="k">Win Rate</div>
-              <div class="v" id="mWin">—</div>
-            </div>
-            <div class="stat">
-              <div class="k">Max Drawdown</div>
-              <div class="v" id="mDd">—</div>
-            </div>
-            <div class="stat">
-              <div class="k">Trades</div>
-              <div class="v" id="mTrades">—</div>
-            </div>
-            <div class="stat wide">
-              <div class="k">Final Balance (start 10,000 ₺)</div>
-              <div class="v" id="mBal">—</div>
-            </div>
+            <div class="stat"><div class="k">Total P/L</div><div class="v" id="mPnl">—</div></div>
+            <div class="stat"><div class="k">Win Rate</div><div class="v" id="mWin">—</div></div>
+            <div class="stat"><div class="k">Max Drawdown</div><div class="v" id="mDd">—</div></div>
+            <div class="stat"><div class="k">Trades</div><div class="v" id="mTrades">—</div></div>
+            <div class="stat wide"><div class="k">Final Balance · start 10,000 ₺</div><div class="v" id="mBal">—</div></div>
           </div>
           <div class="status" id="status"></div>
         </div>
 
-        <!-- Parsed rule -->
         <div class="card">
           <div class="rule-box">
             <div class="t">AI-parsed rule</div>
@@ -298,47 +302,41 @@
   </div>
 
   <script>
-    // ---- Backend endpoint ----
     const API_URL = location.origin.startsWith("http")
       ? location.origin + "/api/run-strategy"
       : "http://127.0.0.1:8000/api/run-strategy";
 
-    // ---- Shared chart options ----
     const baseOpts = {
-      layout: { background: { color: "transparent" }, textColor: "#8a96ac", fontFamily: "inherit" },
-      grid: { vertLines: { color: "rgba(120,140,180,0.07)" }, horzLines: { color: "rgba(120,140,180,0.07)" } },
-      timeScale: { borderColor: "rgba(120,140,180,0.14)" },
-      rightPriceScale: { borderColor: "rgba(120,140,180,0.14)" },
+      layout: { background: { color: "transparent" }, textColor: "#7c8aa6", fontFamily: "JetBrains Mono, monospace", fontSize: 10 },
+      grid: { vertLines: { color: "rgba(255,255,255,0.04)" }, horzLines: { color: "rgba(255,255,255,0.04)" } },
+      timeScale: { borderColor: "rgba(255,255,255,0.10)" },
+      rightPriceScale: { borderColor: "rgba(255,255,255,0.10)" },
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     };
 
-    // ---- Price chart ----
     const priceEl = document.getElementById("chartPrice");
     const priceChart = LightweightCharts.createChart(priceEl, baseOpts);
     const candleSeries = priceChart.addCandlestickSeries({
       upColor: "#2ebd85", downColor: "#f6465d", borderVisible: false,
       wickUpColor: "#2ebd85", wickDownColor: "#f6465d",
     });
-    const sma50Series = priceChart.addLineSeries({ color: "#f0b90b", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
-    const sma200Series = priceChart.addLineSeries({ color: "#b07bff", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
+    const sma50Series = priceChart.addLineSeries({ color: "#ffb454", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
+    const sma200Series = priceChart.addLineSeries({ color: "#a855f7", lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
 
-    // ---- Equity chart ----
     const equityEl = document.getElementById("chartEquity");
     const equityChart = LightweightCharts.createChart(equityEl, baseOpts);
     const equitySeries = equityChart.addAreaSeries({
-      lineColor: "#5b8cff", topColor: "rgba(91,140,255,0.35)", bottomColor: "rgba(91,140,255,0.02)",
+      lineColor: "#4d7cfe", topColor: "rgba(77,124,254,0.35)", bottomColor: "rgba(77,124,254,0.01)",
       lineWidth: 2, priceLineVisible: false,
     });
 
-    // Responsive sizing
     function fitWidths() {
-      priceChart.applyOptions({ width: priceEl.clientWidth, height: 470 });
-      equityChart.applyOptions({ width: equityEl.clientWidth || priceEl.clientWidth, height: 470 });
+      priceChart.applyOptions({ width: priceEl.clientWidth, height: 480 });
+      equityChart.applyOptions({ width: equityEl.clientWidth || priceEl.clientWidth, height: 480 });
     }
     new ResizeObserver(fitWidths).observe(priceEl);
     fitWidths();
 
-    // ---- Tab switching ----
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.addEventListener("click", () => {
         document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
@@ -350,7 +348,6 @@
       });
     });
 
-    // ---- Helpers ----
     function setSigned(el, num, suffix = "%") {
       el.textContent = (num > 0 ? "+" : "") + num + suffix;
       el.classList.remove("green", "red");
@@ -358,7 +355,6 @@
     }
     const OP_LABEL = { less_than: "<", greater_than: ">", crosses_above: "crosses above", crosses_below: "crosses below", equals: "=" };
 
-    // ---- Main flow ----
     const runBtn = document.getElementById("runBtn");
     const spinner = document.getElementById("spinner");
     const btnText = document.getElementById("btnText");
@@ -367,54 +363,39 @@
     async function runStrategy() {
       const text = document.getElementById("strategyInput").value.trim();
       if (!text) return;
-
-      runBtn.disabled = true; spinner.style.display = "inline-block"; btnText.textContent = "Running…";
-      statusEl.className = "status"; statusEl.textContent = "Parsing strategy, fetching data and running the backtest…";
-
+      runBtn.disabled = true; spinner.style.display = "inline-block"; btnText.textContent = "Running";
+      statusEl.className = "status"; statusEl.textContent = "> parsing strategy · fetching data · running backtest…";
       try {
         const res = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ strateji_metni: text }),
         });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || `Server error (${res.status})`);
-        }
+        if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `Server error (${res.status})`); }
         const data = await res.json();
         renderResults(data);
-        statusEl.textContent = `Done · ${data.candles.length} candles · ${data.signals.length} signals`;
+        statusEl.textContent = `> done · ${data.candles.length} candles · ${data.signals.length} signals`;
       } catch (e) {
         statusEl.className = "status error";
-        statusEl.textContent = "Error: " + e.message;
+        statusEl.textContent = "> error: " + e.message;
       } finally {
         runBtn.disabled = false; spinner.style.display = "none"; btnText.textContent = "Run";
       }
     }
 
     function renderResults(data) {
-      // 1) Price + SMA
       candleSeries.setData(data.candles);
       sma50Series.setData(data.sma50 || []);
       sma200Series.setData(data.sma200 || []);
-
-      // 2) BUY/SELL markers (green up / red down arrows)
       const markers = (data.signals || []).map((s) => {
         const buy = s.side === "BUY";
-        return {
-          time: s.date, position: buy ? "belowBar" : "aboveBar",
-          color: buy ? "#2ebd85" : "#f6465d", shape: buy ? "arrowUp" : "arrowDown",
-          text: buy ? "BUY" : "SELL",
-        };
+        return { time: s.date, position: buy ? "belowBar" : "aboveBar", color: buy ? "#2ebd85" : "#f6465d", shape: buy ? "arrowUp" : "arrowDown", text: buy ? "BUY" : "SELL" };
       });
       candleSeries.setMarkers(markers);
       priceChart.timeScale().fitContent();
 
-      // 3) Equity curve
       equitySeries.setData(data.equity || []);
       equityChart.timeScale().fitContent();
 
-      // 4) Metrics
       const m = data.metrics;
       document.getElementById("assetName").textContent = data.asset;
       const pill = document.getElementById("actionPill");
@@ -429,31 +410,21 @@
       document.getElementById("mTrades").textContent = m.toplam_islem_sayisi;
       document.getElementById("mBal").textContent = m.son_bakiye.toLocaleString("en-US") + " ₺";
 
-      // 5) Parsed rule
       const condBox = document.getElementById("ruleConds");
       condBox.innerHTML = "";
       (data.rule.conditions || []).forEach((c) => {
         const div = document.createElement("div");
         div.className = "cond";
-        div.innerHTML =
-          `<span class="badge">${c.indicator}</span>` +
-          `<span class="op">${OP_LABEL[c.operator] || c.operator}</span>` +
-          `<span class="val">${c.value}</span>`;
+        div.innerHTML = `<span class="badge">${c.indicator}</span><span class="op">${OP_LABEL[c.operator] || c.operator}</span><span class="val">${c.value}</span>`;
         condBox.appendChild(div);
       });
     }
 
-    // ---- Chips and keyboard ----
     document.querySelectorAll("#chips .chip").forEach((chip) => {
-      chip.addEventListener("click", () => {
-        document.getElementById("strategyInput").value = chip.textContent;
-        runStrategy();
-      });
+      chip.addEventListener("click", () => { document.getElementById("strategyInput").value = chip.textContent; runStrategy(); });
     });
     runBtn.addEventListener("click", runStrategy);
-    document.getElementById("strategyInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") runStrategy();
-    });
+    document.getElementById("strategyInput").addEventListener("keydown", (e) => { if (e.key === "Enter") runStrategy(); });
   </script>
 </body>
 </html>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1124"/><stop offset="1" stop-color="#0a0716"/>
+    </linearGradient>
+    <linearGradient id="lb" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4d7cfe"/><stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+  <!-- Sharp emblem -->
+  <rect x="2" y="2" width="60" height="60" fill="url(#lg)"/>
+  <rect x="2" y="2" width="60" height="60" fill="none" stroke="url(#lb)" stroke-width="2"/>
+  <rect x="2" y="2" width="60" height="3" fill="#38e1ff"/>
+  <!-- Prompt chevron -->
+  <path d="M14 22 L23 32 L14 42" fill="none" stroke="#38e1ff" stroke-width="3.4" stroke-linecap="square"/>
+  <!-- Rising bars (chart) -->
+  <rect x="30" y="34" width="5" height="14" fill="#4d7cfe"/>
+  <rect x="39" y="26" width="5" height="22" fill="#a855f7"/>
+  <rect x="48" y="18" width="5" height="30" fill="#38e1ff"/>
+</svg>

@@ -1,72 +1,88 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="Segoe UI, Inter, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="Inter, Segoe UI, system-ui, sans-serif">
   <defs>
     <linearGradient id="pbg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0a0e17"/><stop offset="1" stop-color="#0c1120"/>
+      <stop offset="0" stop-color="#070b16"/><stop offset="1" stop-color="#04060d"/>
     </linearGradient>
-    <radialGradient id="pglow" cx="15%" cy="0%" r="50%">
-      <stop offset="0" stop-color="#5b8cff" stop-opacity="0.12"/>
-      <stop offset="1" stop-color="#5b8cff" stop-opacity="0"/>
+    <radialGradient id="pg1" cx="12%" cy="0%" r="55%">
+      <stop offset="0" stop-color="#4d7cfe" stop-opacity="0.18"/><stop offset="1" stop-color="#4d7cfe" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pg2" cx="92%" cy="6%" r="50%">
+      <stop offset="0" stop-color="#a855f7" stop-opacity="0.16"/><stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="ptitle" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#9db8ff"/><stop offset="1" stop-color="#b07bff"/>
+      <stop offset="0" stop-color="#cfe0ff"/><stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="pline" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4d7cfe"/><stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="plg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1124"/><stop offset="1" stop-color="#0a0716"/>
     </linearGradient>
     <linearGradient id="prun" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#7b5bff"/>
+      <stop offset="0" stop-color="#4d7cfe"/><stop offset="1" stop-color="#a855f7"/>
     </linearGradient>
   </defs>
 
   <rect width="1200" height="720" fill="url(#pbg)"/>
-  <rect width="1200" height="720" fill="url(#pglow)"/>
-
-  <!-- Header -->
-  <rect x="40" y="30" width="44" height="44" rx="12" fill="url(#prun)"/>
-  <g stroke="#ffffff" stroke-width="1.8">
-    <line x1="56" y1="40" x2="56" y2="64"/><line x1="70" y1="44" x2="70" y2="66"/>
+  <rect width="1200" height="720" fill="url(#pg1)"/>
+  <rect width="1200" height="720" fill="url(#pg2)"/>
+  <g stroke="#ffffff" stroke-width="1" opacity="0.03">
+    <line x1="300" y1="0" x2="300" y2="720"/><line x1="600" y1="0" x2="600" y2="720"/><line x1="900" y1="0" x2="900" y2="720"/>
   </g>
-  <rect x="52" y="46" width="8" height="13" rx="1.5" fill="#ffffff"/>
-  <rect x="66" y="50" width="8" height="11" rx="1.5" fill="#ffffff" opacity="0.85"/>
-  <text x="98" y="52" font-size="22" font-weight="800" fill="url(#ptitle)">Prompt-to-Code · Strategy Backtest</text>
-  <text x="99" y="73" font-size="13" fill="#8a96ac">Describe a strategy in plain language — parsed into rules and backtested. English &amp; Turkish supported.</text>
+
+  <!-- Header / logo -->
+  <rect x="40" y="30" width="46" height="46" fill="url(#plg)"/>
+  <rect x="40" y="30" width="46" height="46" fill="none" stroke="url(#pline)" stroke-width="1.6"/>
+  <rect x="40" y="30" width="46" height="2.5" fill="#38e1ff"/>
+  <path d="M50 44 L57 53 L50 62" fill="none" stroke="#38e1ff" stroke-width="2.6" stroke-linecap="square"/>
+  <rect x="62" y="55" width="4" height="9" fill="#4d7cfe"/><rect x="69" y="49" width="4" height="15" fill="#a855f7"/><rect x="76" y="45" width="4" height="19" fill="#38e1ff"/>
+  <text x="100" y="52" font-size="22" font-weight="800" fill="url(#ptitle)" letter-spacing="-0.5">Prompt-to-Code · Strategy Backtest</text>
+  <text x="101" y="73" font-size="12.5" fill="#7c8aa6">Describe a strategy in plain language — parsed into rules and backtested. English &amp; Turkish.</text>
+  <g font-family="JetBrains Mono, monospace">
+    <rect x="1058" y="36" width="102" height="28" fill="rgba(8,12,22,0.6)" stroke="#ffffff" stroke-opacity="0.08"/>
+    <circle cx="1076" cy="50" r="3.5" fill="#2ebd85"/>
+    <text x="1088" y="54" font-size="11" fill="#7c8aa6" letter-spacing="1">LIVE</text>
+  </g>
 
   <!-- Composer -->
-  <rect x="40" y="96" width="1120" height="92" rx="16" fill="#161b28" stroke="#2a3450" stroke-width="1"/>
-  <rect x="58" y="114" width="880" height="46" rx="12" fill="#0a0e17" stroke="#2a3450"/>
-  <text x="78" y="142" font-size="14.5" fill="#cfd8e6">Buy THYAO when RSI drops below 35</text>
-  <rect x="952" y="114" width="190" height="46" rx="12" fill="url(#prun)"/>
-  <text x="1047" y="142" font-size="14.5" font-weight="700" fill="#fff" text-anchor="middle">Run</text>
-  <g font-size="12">
-    <text x="58" y="178" fill="#8a96ac">Examples:</text>
-    <g>
-      <rect x="118" y="168" width="160" height="13" rx="7" fill="#5b8cff" opacity="0.12"/>
-      <rect x="286" y="168" width="160" height="13" rx="7" fill="#5b8cff" opacity="0.12"/>
-      <rect x="454" y="168" width="150" height="13" rx="7" fill="#5b8cff" opacity="0.12"/>
-    </g>
+  <rect x="40" y="96" width="1120" height="92" fill="rgba(12,17,30,0.55)" stroke="#ffffff" stroke-opacity="0.07"/>
+  <rect x="40" y="96" width="1120" height="1.5" fill="url(#pline)"/>
+  <rect x="58" y="116" width="880" height="48" fill="#04060d" stroke="#4d7cfe" stroke-opacity="0.4"/>
+  <path d="M76 132 L83 140 L76 148" fill="none" stroke="#4d7cfe" stroke-width="2.2" stroke-linecap="square"/>
+  <line x1="88" y1="148" x2="98" y2="148" stroke="#4d7cfe" stroke-width="2.2"/>
+  <text x="110" y="145" font-size="14.5" fill="#cfd8e6">Buy THYAO when RSI drops below 35</text>
+  <rect x="952" y="116" width="190" height="48" fill="url(#prun)"/>
+  <text x="1047" y="145" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="2" font-family="JetBrains Mono, monospace">RUN</text>
+  <g font-family="JetBrains Mono, monospace" font-size="11">
+    <text x="58" y="180" fill="#56627d" letter-spacing="1">TRY</text>
+    <rect x="92" y="170" width="170" height="13" fill="#4d7cfe" opacity="0.10"/>
+    <rect x="270" y="170" width="170" height="13" fill="#4d7cfe" opacity="0.10"/>
+    <rect x="448" y="170" width="155" height="13" fill="#4d7cfe" opacity="0.10"/>
   </g>
 
-  <!-- ===== Chart card ===== -->
-  <rect x="40" y="206" width="790" height="478" rx="16" fill="#161b28" stroke="#2a3450"/>
-  <text x="62" y="238" font-size="12" letter-spacing="0.6" fill="#8a96ac" font-weight="600">CHART</text>
-  <rect x="560" y="226" width="14" height="3" rx="1" fill="#f0b90b"/><text x="580" y="234" font-size="11" fill="#8a96ac">SMA50</text>
-  <rect x="630" y="226" width="14" height="3" rx="1" fill="#b07bff"/><text x="650" y="234" font-size="11" fill="#8a96ac">SMA200</text>
-  <rect x="690" y="222" width="124" height="26" rx="8" fill="#0a0e17"/>
-  <rect x="694" y="226" width="74" height="18" rx="6" fill="#5b8cff" opacity="0.18"/>
-  <text x="731" y="239" font-size="10.5" fill="#cfe0ff" text-anchor="middle" font-weight="600">Price</text>
-  <text x="790" y="239" font-size="10.5" fill="#8a96ac" text-anchor="middle">Equity</text>
-
-  <g stroke="#212a40" stroke-width="1" opacity="0.6">
-    <line x1="70" y1="300" x2="790" y2="300"/>
-    <line x1="70" y1="390" x2="790" y2="390"/>
-    <line x1="70" y1="480" x2="790" y2="480"/>
-    <line x1="70" y1="570" x2="790" y2="570"/>
+  <!-- Chart card -->
+  <rect x="40" y="208" width="790" height="478" fill="rgba(12,17,30,0.55)" stroke="#ffffff" stroke-opacity="0.07"/>
+  <rect x="40" y="208" width="790" height="1.5" fill="url(#pline)"/>
+  <text x="62" y="240" font-size="11" letter-spacing="1.5" fill="#7c8aa6" font-weight="700" font-family="JetBrains Mono, monospace">CHART</text>
+  <g font-family="JetBrains Mono, monospace" font-size="10.5" fill="#7c8aa6">
+    <rect x="556" y="231" width="12" height="2" fill="#ffb454"/><text x="574" y="238">SMA50</text>
+    <rect x="628" y="231" width="12" height="2" fill="#a855f7"/><text x="646" y="238">SMA200</text>
   </g>
-  <g font-size="10" fill="#5c6779" text-anchor="start">
-    <text x="795" y="304">340</text><text x="795" y="394">310</text>
-    <text x="795" y="484">285</text><text x="795" y="574">260</text>
+  <rect x="700" y="224" width="114" height="24" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+  <rect x="700" y="224" width="64" height="24" fill="#4d7cfe" opacity="0.2"/>
+  <text x="732" y="240" font-size="10.5" fill="#ffffff" text-anchor="middle" font-weight="600">Price</text>
+  <text x="789" y="240" font-size="10.5" fill="#7c8aa6" text-anchor="middle">Equity</text>
+
+  <g stroke="#ffffff" stroke-width="1" opacity="0.04">
+    <line x1="70" y1="302" x2="790" y2="302"/><line x1="70" y1="392" x2="790" y2="392"/><line x1="70" y1="482" x2="790" y2="482"/><line x1="70" y1="572" x2="790" y2="572"/>
+  </g>
+  <g font-size="10" fill="#56627d" font-family="JetBrains Mono, monospace">
+    <text x="795" y="306">340</text><text x="795" y="396">310</text><text x="795" y="486">285</text><text x="795" y="576">260</text>
   </g>
 
-  <polyline fill="none" stroke="#b07bff" stroke-width="1.6" opacity="0.9"
+  <polyline fill="none" stroke="#a855f7" stroke-width="1.6" opacity="0.85"
     points="80,470 150,468 220,460 290,452 360,448 430,452 500,448 570,440 640,432 710,428 780,422"/>
-  <polyline fill="none" stroke="#f0b90b" stroke-width="1.6" opacity="0.95"
+  <polyline fill="none" stroke="#ffb454" stroke-width="1.6" opacity="0.9"
     points="80,486 150,470 220,452 290,470 360,492 430,470 500,440 570,420 640,408 710,430 780,440"/>
 
   <g stroke-width="1.6">
@@ -96,57 +112,56 @@
     <line x1="770" y1="400" x2="770" y2="455" stroke="#2ebd85"/><rect x="764" y="414" width="12" height="30" fill="#2ebd85"/>
   </g>
 
-  <!-- BUY / SELL markers -->
-  <g font-size="11" font-weight="700">
+  <g font-size="11" font-weight="700" font-family="JetBrains Mono, monospace">
     <path d="M170,560 l-7,12 h14 z" fill="#2ebd85"/><text x="170" y="590" fill="#2ebd85" text-anchor="middle">BUY</text>
     <path d="M350,572 l-7,12 h14 z" fill="#2ebd85"/><text x="350" y="602" fill="#2ebd85" text-anchor="middle">BUY</text>
     <path d="M530,408 l-7,-12 h14 z" fill="#f6465d"/><text x="530" y="400" fill="#f6465d" text-anchor="middle">SELL</text>
     <path d="M710,348 l-7,-12 h14 z" fill="#f6465d"/><text x="710" y="340" fill="#f6465d" text-anchor="middle">SELL</text>
   </g>
 
-  <!-- ===== Sidebar ===== -->
-  <rect x="846" y="206" width="314" height="298" rx="16" fill="#161b28" stroke="#2a3450"/>
-  <text x="868" y="246" font-size="20" font-weight="800" fill="#e7edf6">THYAO.IS</text>
-  <text x="868" y="266" font-size="11.5" fill="#8a96ac">Backtest · 2 years · 0.1% commission</text>
-  <rect x="1086" y="226" width="52" height="24" rx="12" fill="#2ebd85" opacity="0.16"/>
-  <text x="1112" y="242" font-size="11.5" font-weight="700" fill="#2ebd85" text-anchor="middle">BUY</text>
+  <!-- Sidebar -->
+  <rect x="846" y="208" width="314" height="300" fill="rgba(12,17,30,0.55)" stroke="#ffffff" stroke-opacity="0.07"/>
+  <rect x="846" y="208" width="314" height="1.5" fill="url(#pline)"/>
+  <text x="868" y="248" font-size="22" font-weight="700" fill="#e9eef8" font-family="JetBrains Mono, monospace" letter-spacing="0.5">THYAO.IS</text>
+  <text x="868" y="268" font-size="10.5" fill="#56627d" font-family="JetBrains Mono, monospace" letter-spacing="0.4">BACKTEST · 2Y · 0.1% COMMISSION</text>
+  <rect x="1086" y="226" width="52" height="26" fill="rgba(46,189,133,0.12)" stroke="#2ebd85" stroke-opacity="0.4"/>
+  <text x="1112" y="243" font-size="11" font-weight="700" fill="#2ebd85" text-anchor="middle" font-family="JetBrains Mono, monospace" letter-spacing="1">BUY</text>
 
-  <g>
-    <rect x="868" y="286" width="130" height="64" rx="12" fill="#0a0e17" stroke="#212a40"/>
-    <text x="882" y="308" font-size="11" fill="#8a96ac">Total P/L</text>
-    <text x="882" y="335" font-size="21" font-weight="800" fill="#2ebd85">+39.34%</text>
-
-    <rect x="1008" y="286" width="130" height="64" rx="12" fill="#0a0e17" stroke="#212a40"/>
-    <text x="1022" y="308" font-size="11" fill="#8a96ac">Win Rate</text>
-    <text x="1022" y="335" font-size="21" font-weight="800" fill="#e7edf6">80%</text>
-
-    <rect x="868" y="360" width="130" height="64" rx="12" fill="#0a0e17" stroke="#212a40"/>
-    <text x="882" y="382" font-size="11" fill="#8a96ac">Max Drawdown</text>
-    <text x="882" y="409" font-size="21" font-weight="800" fill="#f6465d">-21.07%</text>
-
-    <rect x="1008" y="360" width="130" height="64" rx="12" fill="#0a0e17" stroke="#212a40"/>
-    <text x="1022" y="382" font-size="11" fill="#8a96ac">Trades</text>
-    <text x="1022" y="409" font-size="21" font-weight="800" fill="#e7edf6">5</text>
-
-    <rect x="868" y="434" width="270" height="54" rx="12" fill="#0a0e17" stroke="#212a40"/>
-    <text x="882" y="455" font-size="11" fill="#8a96ac">Final Balance (start 10,000 ₺)</text>
-    <text x="882" y="478" font-size="17" font-weight="800" fill="#e7edf6">13,933.65 ₺</text>
+  <g font-family="JetBrains Mono, monospace">
+    <rect x="868" y="288" width="134" height="66" fill="#070b16" stroke="#ffffff" stroke-opacity="0.06"/>
+    <text x="884" y="310" font-size="10" fill="#7c8aa6" letter-spacing="0.6">TOTAL P/L</text>
+    <text x="884" y="338" font-size="23" font-weight="700" fill="#2ebd85">+39.34%</text>
+    <rect x="1006" y="288" width="132" height="66" fill="#070b16" stroke="#ffffff" stroke-opacity="0.06"/>
+    <text x="1022" y="310" font-size="10" fill="#7c8aa6" letter-spacing="0.6">WIN RATE</text>
+    <text x="1022" y="338" font-size="23" font-weight="700" fill="#e9eef8">80%</text>
+    <rect x="868" y="356" width="134" height="66" fill="#070b16" stroke="#ffffff" stroke-opacity="0.06"/>
+    <text x="884" y="378" font-size="10" fill="#7c8aa6" letter-spacing="0.6">MAX DRAWDOWN</text>
+    <text x="884" y="406" font-size="23" font-weight="700" fill="#f6465d">-21.07%</text>
+    <rect x="1006" y="356" width="132" height="66" fill="#070b16" stroke="#ffffff" stroke-opacity="0.06"/>
+    <text x="1022" y="378" font-size="10" fill="#7c8aa6" letter-spacing="0.6">TRADES</text>
+    <text x="1022" y="406" font-size="23" font-weight="700" fill="#e9eef8">5</text>
+    <rect x="868" y="424" width="270" height="58" fill="#070b16" stroke="#ffffff" stroke-opacity="0.06"/>
+    <text x="884" y="446" font-size="10" fill="#7c8aa6" letter-spacing="0.6">FINAL BALANCE · START 10,000 TL</text>
+    <text x="884" y="470" font-size="18" font-weight="700" fill="#e9eef8">13,933.65 TL</text>
   </g>
 
   <!-- AI-parsed rule -->
-  <rect x="846" y="516" width="314" height="168" rx="16" fill="#161b28" stroke="#2a3450"/>
-  <text x="868" y="546" font-size="12" fill="#8a96ac">AI-parsed rule</text>
-  <rect x="868" y="560" width="270" height="34" rx="9" fill="#0a0e17" stroke="#212a40"/>
-  <rect x="880" y="570" width="44" height="15" rx="5" fill="#7b5bff" opacity="0.18"/>
-  <text x="902" y="581" font-size="10.5" fill="#c3b0ff" text-anchor="middle" font-weight="600">RSI</text>
-  <text x="936" y="581" font-size="12" fill="#8a96ac">&lt;</text>
-  <text x="952" y="581" font-size="12" fill="#e7edf6" font-weight="700">35</text>
+  <rect x="846" y="528" width="314" height="158" fill="rgba(12,17,30,0.55)" stroke="#ffffff" stroke-opacity="0.07"/>
+  <rect x="846" y="528" width="314" height="1.5" fill="url(#pline)"/>
+  <text x="868" y="556" font-size="10.5" fill="#7c8aa6" font-family="JetBrains Mono, monospace" letter-spacing="1">AI-PARSED RULE</text>
+  <rect x="868" y="570" width="270" height="36" fill="#04060d" stroke="#ffffff" stroke-opacity="0.07"/>
+  <rect x="868" y="570" width="2" height="36" fill="#4d7cfe"/>
+  <rect x="882" y="581" width="40" height="16" fill="#a855f7" opacity="0.16"/>
+  <text x="902" y="593" font-size="10.5" fill="#d6bcff" text-anchor="middle" font-weight="600" font-family="JetBrains Mono, monospace">RSI</text>
+  <text x="934" y="593" font-size="12" fill="#7c8aa6" font-family="JetBrains Mono, monospace">&lt;</text>
+  <text x="950" y="593" font-size="12" fill="#e9eef8" font-weight="700" font-family="JetBrains Mono, monospace">35</text>
 
-  <rect x="868" y="602" width="270" height="34" rx="9" fill="#0a0e17" stroke="#212a40"/>
-  <rect x="880" y="612" width="56" height="15" rx="5" fill="#7b5bff" opacity="0.18"/>
-  <text x="908" y="623" font-size="10.5" fill="#c3b0ff" text-anchor="middle" font-weight="600">price</text>
-  <text x="948" y="623" font-size="11" fill="#8a96ac">crosses above</text>
-  <text x="1048" y="623" font-size="12" fill="#e7edf6" font-weight="700">SMA_50</text>
+  <rect x="868" y="614" width="270" height="36" fill="#04060d" stroke="#ffffff" stroke-opacity="0.07"/>
+  <rect x="868" y="614" width="2" height="36" fill="#4d7cfe"/>
+  <rect x="882" y="625" width="52" height="16" fill="#a855f7" opacity="0.16"/>
+  <text x="908" y="637" font-size="10.5" fill="#d6bcff" text-anchor="middle" font-weight="600" font-family="JetBrains Mono, monospace">price</text>
+  <text x="946" y="637" font-size="10.5" fill="#7c8aa6" font-family="JetBrains Mono, monospace">crosses above</text>
+  <text x="1050" y="637" font-size="11.5" fill="#e9eef8" font-weight="700" font-family="JetBrains Mono, monospace">SMA_50</text>
 
-  <text x="868" y="664" font-size="11" fill="#2ebd85">Done · 502 candles · 10 signals</text>
+  <text x="868" y="672" font-size="10.5" fill="#2ebd85" font-family="JetBrains Mono, monospace">&gt; done · 502 candles · 10 signals</text>
 </svg>
