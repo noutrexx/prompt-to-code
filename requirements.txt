@@ -1,0 +1,14 @@
+# Veri & indikatorler
+yfinance
+ta
+pandas
+numpy
+
+# NLP (Gemini + structured output)
+google-genai
+pydantic
+python-dotenv
+
+# Backend
+fastapi
+uvicorn[standard]

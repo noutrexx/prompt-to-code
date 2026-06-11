@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt-to-Code · Strateji Backtest</title>
+
+  <!-- TradingView Lightweight Charts (CDN) -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #2f81f7;
+      --green: #26a69a;
+      --red: #ef5350;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .container { max-width: 1280px; margin: 0 auto; }
+
+    header h1 { font-size: 20px; font-weight: 600; }
+    header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    /* --- Strateji girdi satiri --- */
+    .input-row {
+      display: flex;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .input-row input {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      outline: none;
+    }
+    .input-row input:focus { border-color: var(--accent); }
+    .input-row button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 22px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .input-row button:hover { opacity: .9; }
+    .input-row button:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* --- Ana yerlesim: grafik + metrik paneli --- */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 16px;
+    }
+    @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .card h2 { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    #chart { width: 100%; height: 460px; }
+
+    /* --- Metrik kartlari --- */
+    .metric {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .metric:last-child { border-bottom: none; }
+    .metric .label { color: var(--muted); font-size: 12px; }
+    .metric .value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+    .value.green { color: var(--green); }
+    .value.red { color: var(--red); }
+
+    .asset-badge {
+      display: inline-block;
+      background: rgba(47,129,247,.15);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .status { font-size: 13px; color: var(--muted); margin-top: 12px; min-height: 18px; }
+    .status.error { color: var(--red); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📈 Prompt-to-Code · Strateji Backtest</h1>
+      <p>Türkçe stratejini yaz, otomatik kurala çevrilsin, geçmiş veride test edilsin.</p>
+    </header>
+
+    <!-- Strateji girdisi -->
+    <div class="input-row">
+      <input
+        id="strategyInput"
+        type="text"
+        placeholder="Örn: RSI 35'in altına düştüğünde THYAO al."
+        value="RSI 35'in altına düştüğünde THYAO al."
+      />
+      <button id="runBtn">Çalıştır</button>
+    </div>
+
+    <!-- Grafik + metrikler -->
+    <div class="layout">
+      <div class="card">
+        <h2>Fiyat Grafiği & Sinyaller</h2>
+        <div id="chart"></div>
+      </div>
+
+      <div class="card">
+        <h2>Backtest Metrikleri</h2>
+        <div id="assetBadge" class="asset-badge" style="display:none;"></div>
+
+        <div class="metric">
+          <div class="label">Toplam Kâr / Zarar</div>
+          <div class="value" id="mPnl">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Kazanma Oranı (Win Rate)</div>
+          <div class="value" id="mWin">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Maksimum Düşüş (Max Drawdown)</div>
+          <div class="value" id="mDd">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Toplam İşlem / Bakiye</div>
+          <div class="value" id="mTrades" style="font-size:18px;">—</div>
+        </div>
+
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---- Backend adresi (gerekirse degistir) ----
+    const API_URL = (location.origin.startsWith("http"))
+      ? location.origin + "/api/run-strategy"
+      : "http://127.0.0.1:8000/api/run-strategy";
+
+    // ---- Grafik kurulumu ----
+    const chartEl = document.getElementById("chart");
+    const chart = LightweightCharts.createChart(chartEl, {
+      layout: { background: { color: "transparent" }, textColor: "#8b949e" },
+      grid: {
+        vertLines: { color: "rgba(48,54,61,0.5)" },
+        horzLines: { color: "rgba(48,54,61,0.5)" },
+      },
+      timeScale: { borderColor: "#30363d" },
+      rightPriceScale: { borderColor: "#30363d" },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    });
+
+    // Mum (candlestick) serisi
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: "#26a69a", downColor: "#ef5350",
+      borderVisible: false,
+      wickUpColor: "#26a69a", wickDownColor: "#ef5350",
+    });
+
+    // SMA çizgi serileri (görsel zenginlik)
+    const sma50Series = chart.addLineSeries({ color: "#f0b90b", lineWidth: 1, priceLineVisible: false });
+    const sma200Series = chart.addLineSeries({ color: "#9d4edd", lineWidth: 1, priceLineVisible: false });
+
+    // Pencere boyutuyla grafigi olcekle
+    new ResizeObserver(() => chart.applyOptions({ width: chartEl.clientWidth })).observe(chartEl);
+    chart.applyOptions({ width: chartEl.clientWidth, height: 460 });
+
+    // ---- Yardimci: renkli deger yazimi ----
+    function setSignedValue(el, num, suffix = "%") {
+      el.textContent = (num > 0 ? "+" : "") + num + suffix;
+      el.classList.remove("green", "red");
+      el.classList.add(num >= 0 ? "green" : "red");
+    }
+
+    // ---- Ana akis: stratejiyi calistir ----
+    const runBtn = document.getElementById("runBtn");
+    const statusEl = document.getElementById("status");
+
+    async function runStrategy() {
+      const text = document.getElementById("strategyInput").value.trim();
+      if (!text) return;
+
+      runBtn.disabled = true;
+      statusEl.className = "status";
+      statusEl.textContent = "Strateji çözümleniyor, veri çekiliyor ve test ediliyor…";
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ strateji_metni: text }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Sunucu hatası (${res.status})`);
+        }
+
+        const data = await res.json();
+        renderResults(data);
+        statusEl.textContent = `Tamamlandı · ${data.candles.length} mum, ${data.signals.length} sinyal.`;
+      } catch (e) {
+        statusEl.className = "status error";
+        statusEl.textContent = "Hata: " + e.message;
+      } finally {
+        runBtn.disabled = false;
+      }
+    }
+
+    // ---- Sonuclari grafige ve panele bas ----
+    function renderResults(data) {
+      // 1) Mum verisi
+      candleSeries.setData(data.candles);
+      sma50Series.setData(data.sma50 || []);
+      sma200Series.setData(data.sma200 || []);
+
+      // 2) AL/SAT marker'lari (yesil ok yukarida, kirmizi ok asagida)
+      const markers = (data.signals || []).map((s) => {
+        const isBuy = s.side === "BUY";
+        return {
+          time: s.date,
+          position: isBuy ? "belowBar" : "aboveBar",
+          color: isBuy ? "#26a69a" : "#ef5350",
+          shape: isBuy ? "arrowUp" : "arrowDown",
+          text: isBuy ? "AL" : "SAT",
+        };
+      });
+      candleSeries.setMarkers(markers);
+      chart.timeScale().fitContent();
+
+      // 3) Metrik paneli
+      const m = data.metrics;
+      const badge = document.getElementById("assetBadge");
+      badge.style.display = "inline-block";
+      badge.textContent = data.asset;
+
+      setSignedValue(document.getElementById("mPnl"), m.toplam_kar_zarar_pct);
+      document.getElementById("mWin").textContent = m.win_rate_pct + "%";
+      setSignedValue(document.getElementById("mDd"), m.max_drawdown_pct);
+      document.getElementById("mTrades").textContent =
+        `${m.toplam_islem_sayisi} işlem · ${m.son_bakiye.toLocaleString("tr-TR")} ₺`;
+    }
+
+    runBtn.addEventListener("click", runStrategy);
+    document.getElementById("strategyInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") runStrategy();
+    });
+  </script>
+</body>
+</html>

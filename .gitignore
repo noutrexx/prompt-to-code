@@ -11,8 +11,12 @@ __pycache__/
 venv/
 env/
 
-# IDE / OS
+# IDE / OS / harness
 .vscode/
 .idea/
+.claude/
 .DS_Store
 Thumbs.db
+
+# Test artifaktlari
+resp.json
