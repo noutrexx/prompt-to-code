@@ -17,11 +17,15 @@ Frontend, http://127.0.0.1:8000/ adresinden de servis edilir.
 from __future__ import annotations
 
 import os
+import threading
+import time
+from collections import defaultdict, deque
 from typing import Any, Dict, List
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -34,14 +38,92 @@ from nlp_parser import BISTRuleParser, NLPParserError
 # ---------------------------------------------------------------------- #
 app = FastAPI(title="Prompt-to-Code Strateji API", version="1.0.0")
 
-# CORS: frontend ayri bir origin'den (veya file://) cagirabilsin diye acik.
+_cors_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://127.0.0.1:8000,http://localhost:8000",
+    ).split(",")
+    if origin.strip()
+]
+_max_body_bytes = int(os.getenv("MAX_REQUEST_BODY_BYTES", "4096"))
+_rate_limit_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "10"))
+_max_concurrent_strategies = int(os.getenv("MAX_CONCURRENT_STRATEGIES", "2"))
+_strategy_slots = threading.BoundedSemaphore(_max_concurrent_strategies)
+_request_history: dict[str, deque[float]] = defaultdict(deque)
+_request_history_lock = threading.Lock()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
+
+
+def _client_key(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _consume_rate_limit(client_key: str, now: float | None = None) -> bool:
+    current_time = now if now is not None else time.monotonic()
+    cutoff = current_time - 60
+
+    with _request_history_lock:
+        history = _request_history[client_key]
+        while history and history[0] <= cutoff:
+            history.popleft()
+        if len(history) >= _rate_limit_per_minute:
+            return False
+        history.append(current_time)
+        return True
+
+
+@app.middleware("http")
+async def protect_strategy_endpoint(request: Request, call_next):
+    if request.url.path != "/api/run-strategy" or request.method != "POST":
+        return await call_next(request)
+
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > _max_body_bytes:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "request_body_too_large"},
+                )
+        except ValueError:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "invalid_content_length"},
+            )
+
+    body = await request.body()
+    if len(body) > _max_body_bytes:
+        return JSONResponse(
+            status_code=413,
+            content={"detail": "request_body_too_large"},
+        )
+
+    if not _consume_rate_limit(_client_key(request)):
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "strategy_rate_limit_exceeded"},
+            headers={"Retry-After": "60"},
+        )
+
+    if not _strategy_slots.acquire(blocking=False):
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "strategy_capacity_exceeded"},
+            headers={"Retry-After": "5"},
+        )
+
+    try:
+        return await call_next(request)
+    finally:
+        _strategy_slots.release()
 
 # NLP parser'i tek sefer kur (her istekte yeniden olusturmamak icin).
 # Anahtar yoksa parser yerel (regex) cozucu moduna gecer, yine de calisir.
@@ -52,7 +134,12 @@ _parser = BISTRuleParser()
 # Istek / yanit modelleri
 # ---------------------------------------------------------------------- #
 class StrategyRequest(BaseModel):
-    strateji_metni: str = Field(..., description="Turkce strateji cumlesi.")
+    strateji_metni: str = Field(
+        ...,
+        min_length=3,
+        max_length=500,
+        description="Turkce veya Ingilizce strateji cumlesi.",
+    )
 
 
 # ---------------------------------------------------------------------- #

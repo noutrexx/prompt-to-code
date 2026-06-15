@@ -121,6 +121,10 @@ Create a `.env` file (see `.env.example`):
 
 ```env
 GEMINI_API_KEY=your_api_key
+CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
+RATE_LIMIT_PER_MINUTE=10
+MAX_CONCURRENT_STRATEGIES=2
+MAX_REQUEST_BODY_BYTES=4096
 ```
 
 > Get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).
@@ -139,6 +143,19 @@ Open **http://127.0.0.1:8000/** in your browser.
 ## API
 
 ### `POST /api/run-strategy`
+
+This expensive endpoint is protected by:
+
+- an allowlisted CORS origin list;
+- a maximum 500-character strategy and 4 KB request body;
+- a per-client request limit, defaulting to 10 requests per minute;
+- a concurrent strategy execution limit, defaulting to 2.
+
+Tune these values through environment variables before deployment. Requests over the rate
+limit return `429`; requests above current execution capacity return `503`.
+
+The built-in limiter is process-local. Multi-instance production deployments should also
+enforce a shared rate limit and abuse protection at the API gateway or reverse proxy.
 
 **Request:**
 ```json
