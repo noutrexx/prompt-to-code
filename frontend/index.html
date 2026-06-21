@@ -34,6 +34,11 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
+    html { scroll-behavior: smooth; }
+    ::selection { background: rgba(77,124,254,0.34); color: #fff; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    :focus:not(:focus-visible) { outline: none; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
     body {
       font-family: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
       color: var(--text);
@@ -85,7 +90,9 @@
       color: var(--muted); border: 1px solid var(--line); padding: 7px 12px;
       background: var(--panel-2); backdrop-filter: blur(8px);
     }
-    .badge-live .dot { width: 7px; height: 7px; background: var(--green); box-shadow: 0 0 10px var(--green); }
+    .badge-live .dot { width: 7px; height: 7px; background: var(--green); box-shadow: 0 0 10px var(--green); animation: live-pulse 1.8s ease-in-out infinite; }
+    @keyframes live-pulse { 0%, 100% { box-shadow: 0 0 10px var(--green); opacity: 1; } 50% { box-shadow: 0 0 16px var(--green); opacity: 0.55; } }
+    @media (prefers-reduced-motion: reduce) { .badge-live .dot { animation: none; } }
 
     /* ---------- Glass card base ---------- */
     .card { position: relative; background: var(--panel); backdrop-filter: blur(16px); border: 1px solid var(--line); }
