@@ -19,6 +19,15 @@
 ![Lightweight Charts](https://img.shields.io/badge/TradingView_Charts-131722?style=for-the-badge&logo=tradingview&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)
 
+<br/>
+
+<a href="#overview">Overview</a> ·
+<a href="#features">Features</a> ·
+<a href="#tech-stack">Tech Stack</a> ·
+<a href="#architecture">Architecture</a> ·
+<a href="#installation">Installation</a> ·
+<a href="#usage">Usage</a>
+
 </div>
 
 ---
