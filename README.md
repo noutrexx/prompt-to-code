@@ -201,9 +201,9 @@ Returns service status and NLP mode (Gemini or local fallback).
 ## Roadmap
 
 - [ ] Separate user-defined entry and exit rules
-- [ ] Next-bar-open entry (look-ahead correction)
+- [x] Next-bar-open entry (look-ahead correction)
 - [ ] Multi-symbol / multi-strategy comparison
-- [ ] Unit tests (pytest)
+- [x] Unit tests (pytest)
 
 ---
 
