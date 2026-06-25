@@ -64,17 +64,24 @@ class Backtester:
         sell_rule: Optional[Union[Dict[str, Any], str]] = None,
         initial_balance: float = 10_000.0,
         commission: float = 0.001,  # %0.1
+        execution: str = "next_open",
     ) -> None:
         if df is None or df.empty:
             raise BacktestError("Bos veya gecersiz DataFrame.")
         if "Close" not in df.columns:
             raise BacktestError("DataFrame 'Close' kolonu icermeli.")
+        if execution not in ("next_open", "close"):
+            raise BacktestError("execution 'next_open' veya 'close' olmalidir.")
 
         self.df = df.copy()
         self.buy_rule = self._as_dict(buy_rule)
         self.sell_rule = self._as_dict(sell_rule) if sell_rule is not None else None
         self.initial_balance = float(initial_balance)
         self.commission = float(commission)
+        # "next_open": bir barin kapanisinda gozlenen sinyal, look-ahead'i
+        # onlemek icin BIR SONRAKI barin acilisinda islem gorur (gercekci).
+        # "close": eski davranis — sinyal bariyla ayni kapanistan islem (look-ahead).
+        self.execution = execution
 
         # Sonuc taşiyicilari
         self.signals: List[Dict[str, Any]] = []   # [{date, side, price}]
@@ -169,7 +176,18 @@ class Backtester:
         else:
             sell_signals = pd.Series(False, index=self.df.index)
 
-        close = self.df["Close"].to_numpy()
+        # --- Look-ahead duzeltmesi ---
+        # next_open: i barinin kapanisinda olusan sinyali bir bar ileri kaydir,
+        # boylece i+1 barinin ACILISINDAN islem yapilir (gelecegi gormeden).
+        if self.execution == "next_open":
+            buy_signals = buy_signals.shift(1, fill_value=False)
+            sell_signals = sell_signals.shift(1, fill_value=False)
+            exec_src = "Open" if "Open" in self.df.columns else "Close"
+        else:  # "close" — eski davranis (sinyal bariyla ayni kapanis)
+            exec_src = "Close"
+
+        close = self.df["Close"].to_numpy()            # mark-to-market icin
+        exec_prices = self.df[exec_src].to_numpy()      # islem gerceklestirme fiyati
         dates = self.df.index
         buy_arr = buy_signals.to_numpy()
         sell_arr = sell_signals.to_numpy()
@@ -184,38 +202,39 @@ class Backtester:
         self.trades.clear()
 
         for i in range(len(close)):
-            price = close[i]
+            exec_price = exec_prices[i]   # alis/satis bu fiyattan gerceklesir
+            mtm_price = close[i]          # portfoy degeri kapanistan isaretlenir
 
             # Once cikis (satis), sonra giris (alis) — ayni bar iki islem olmaz
             if in_position and sell_arr[i]:
-                cash = shares * price * (1.0 - self.commission)
-                pnl_pct = (price - entry_price) / entry_price * 100.0
+                cash = shares * exec_price * (1.0 - self.commission)
+                pnl_pct = (exec_price - entry_price) / entry_price * 100.0
                 self.trades.append({
                     "entry_price": round(entry_price, 4),
-                    "exit_price": round(float(price), 4),
+                    "exit_price": round(float(exec_price), 4),
                     "pnl_pct": round(pnl_pct, 4),
                 })
                 self.signals.append({
                     "date": self._fmt_date(dates[i]),
                     "side": "SELL",
-                    "price": round(float(price), 4),
+                    "price": round(float(exec_price), 4),
                 })
                 shares = 0.0
                 in_position = False
 
             elif (not in_position) and buy_arr[i]:
-                shares = (cash * (1.0 - self.commission)) / price
-                entry_price = price
+                shares = (cash * (1.0 - self.commission)) / exec_price
+                entry_price = exec_price
                 cash = 0.0
                 in_position = True
                 self.signals.append({
                     "date": self._fmt_date(dates[i]),
                     "side": "BUY",
-                    "price": round(float(price), 4),
+                    "price": round(float(exec_price), 4),
                 })
 
             # Bar sonu portfoy degeri (mark-to-market)
-            equity[i] = cash + shares * price
+            equity[i] = cash + shares * mtm_price
 
         # Acik pozisyon kaldiysa son fiyattan kapat (gerceklesmis K/Z icin)
         if in_position:
