@@ -108,5 +108,64 @@ class EdgeCaseTests(unittest.TestCase):
             Backtester(pd.DataFrame(), BUY_RULE)
 
 
+class MetricsTests(unittest.TestCase):
+    def test_buy_hold_uses_first_and_last_close(self):
+        bt = Backtester(_make_df(), BUY_RULE, SELL_RULE)
+        bt.run()
+        # Close: 200 -> 205  =>  %2.5
+        self.assertEqual(bt.metrics["al_tut_getiri_pct"], 2.5)
+
+    def test_alpha_is_strategy_minus_buy_hold(self):
+        bt = Backtester(_make_df(), BUY_RULE, SELL_RULE)
+        bt.run()
+        expected = round(bt.metrics["toplam_kar_zarar_pct"] - bt.metrics["al_tut_getiri_pct"], 2)
+        self.assertEqual(bt.metrics["strateji_alpha_pct"], expected)
+
+    def test_sharpe_key_present_and_numeric(self):
+        bt = Backtester(_make_df(), BUY_RULE, SELL_RULE)
+        bt.run()
+        self.assertIn("sharpe_orani", bt.metrics)
+        self.assertIsInstance(bt.metrics["sharpe_orani"], float)
+
+    def test_flat_equity_has_zero_sharpe(self):
+        df = _make_df()
+        df["RSI_14"] = 50  # hic islem yok -> equity sabit
+        bt = Backtester(df, BUY_RULE, SELL_RULE)
+        bt.run()
+        self.assertEqual(bt.metrics["sharpe_orani"], 0.0)
+
+
+class ConditionOperatorTests(unittest.TestCase):
+    """crosses_above/below operatorleri bir onceki bara gore kesisim arar."""
+
+    def _df_with_macd(self, macd_values):
+        dates = pd.date_range("2024-01-01", periods=len(macd_values), freq="D")
+        return pd.DataFrame(
+            {
+                "Open": np.arange(100, 100 + len(macd_values), dtype=float),
+                "Close": np.arange(100, 100 + len(macd_values), dtype=float),
+                "MACD": macd_values,
+            },
+            index=dates,
+        )
+
+    def test_crosses_above_zero_fires_once(self):
+        # MACD -1 -> +1 gecisi yalnizca bar 2'de yukari kesisir
+        df = self._df_with_macd([-2.0, -1.0, 1.0, 2.0])
+        rule = {"conditions": [{"indicator": "MACD", "operator": "crosses_above", "value": 0}]}
+        bt = Backtester(df, rule)
+        signals = bt._evaluate_rule(bt.buy_rule)
+        self.assertEqual(signals.sum(), 1)
+        self.assertTrue(bool(signals.iloc[2]))
+
+    def test_crosses_below_zero_fires_once(self):
+        df = self._df_with_macd([2.0, 1.0, -1.0, -2.0])
+        rule = {"conditions": [{"indicator": "MACD", "operator": "crosses_below", "value": 0}]}
+        bt = Backtester(df, rule)
+        signals = bt._evaluate_rule(bt.buy_rule)
+        self.assertEqual(signals.sum(), 1)
+        self.assertTrue(bool(signals.iloc[2]))
+
+
 if __name__ == "__main__":
     unittest.main()
