@@ -135,6 +135,54 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(bt.metrics["sharpe_orani"], 0.0)
 
 
+class StopLossTakeProfitTests(unittest.TestCase):
+    """Koruyucu emirler intrabar (High/Low) tetiklenir, fiyat seviyesinden cikar."""
+
+    def _df(self, highs, lows):
+        n = len(highs)
+        dates = pd.date_range("2024-01-01", periods=n, freq="D")
+        return pd.DataFrame(
+            {
+                "Open":  [100.0] * n,
+                "High":  highs,
+                "Low":   lows,
+                "Close": [100.0] * n,
+                # Bar 0'da AL sinyali -> giris bar 1 acilisi (100)
+                "RSI_14": [25.0] + [50.0] * (n - 1),
+            },
+            index=dates,
+        )
+
+    def test_stop_loss_exits_at_stop_level(self):
+        # Giris 100, stop %10 -> 90. Bar 2'de Low 88 stop'u deler.
+        df = self._df(highs=[101, 101, 101, 101], lows=[99, 99, 88, 99])
+        bt = Backtester(df, BUY_RULE, SELL_RULE, stop_loss=0.10)
+        bt.run()
+        self.assertEqual(bt.trades[0]["reason"], "stop_loss")
+        self.assertEqual(bt.trades[0]["exit_price"], 90.0)
+
+    def test_take_profit_exits_at_target_level(self):
+        # Giris 100, hedef %20 -> 120. Bar 2'de High 125 hedefi asar.
+        df = self._df(highs=[101, 101, 125, 101], lows=[99, 99, 99, 99])
+        bt = Backtester(df, BUY_RULE, SELL_RULE, take_profit=0.20)
+        bt.run()
+        self.assertEqual(bt.trades[0]["reason"], "take_profit")
+        self.assertEqual(bt.trades[0]["exit_price"], 120.0)
+
+    def test_stop_takes_priority_over_target_same_bar(self):
+        # Ayni bar hem stop (Low 85<90) hem hedef (High 125>120) gorulur -> stop sayilir.
+        df = self._df(highs=[101, 101, 125, 101], lows=[99, 99, 85, 99])
+        bt = Backtester(df, BUY_RULE, SELL_RULE, stop_loss=0.10, take_profit=0.20)
+        bt.run()
+        self.assertEqual(bt.trades[0]["reason"], "stop_loss")
+
+    def test_invalid_fraction_raises(self):
+        with self.assertRaises(BacktestError):
+            Backtester(_make_df(), BUY_RULE, stop_loss=1.5)
+        with self.assertRaises(BacktestError):
+            Backtester(_make_df(), BUY_RULE, take_profit=0.0)
+
+
 class ConditionOperatorTests(unittest.TestCase):
     """crosses_above/below operatorleri bir onceki bara gore kesisim arar."""
 
