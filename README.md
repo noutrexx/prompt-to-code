@@ -57,7 +57,10 @@ results are returned as metrics and chart-ready data.
 | **Local fallback parser** | A regex engine handles common patterns when the API is unavailable |
 | **Persistent cache** | Parsed rules are stored on disk, so repeated strategies cost no quota |
 | **20+ indicators** | RSI, Stochastic, SMA/EMA (four periods), MACD, ADX, Bollinger Bands, volume |
-| **Realistic backtest** | 0.1% commission, 10,000 ₺ starting balance, equity curve |
+| **Realistic backtest** | 0.1% commission, 10,000 ₺ start, next-bar-open fills (no look-ahead) |
+| **Risk management** | Optional stop-loss and take-profit, triggered intrabar at the price level |
+| **Multi-symbol compare** | Run one strategy across several tickers and rank them by return |
+| **Rich metrics** | Buy & hold benchmark, alpha, Sharpe, profit factor, exit-reason breakdown |
 | **Modern UI** | TradingView candlesticks, BUY/SELL markers, equity-curve tab |
 | **Smart symbols** | BIST tickers get `.IS` automatically; commodities map to yfinance symbols |
 
@@ -107,12 +110,15 @@ flowchart LR
 prompt-to-code/
 ├── data_engine.py        # yfinance data + 20+ technical indicators (cached)
 ├── nlp_parser.py         # Gemini/regex: text -> TradingRule + persistent cache
-├── backtest_engine.py    # vectorized backtest, metric calculation
+├── backtest_engine.py    # backtest sim: fills, stop/target, metrics
+├── compare_engine.py     # run one strategy across many symbols, ranked
 ├── app.py                # FastAPI service + CORS + static frontend
 ├── frontend/
 │   └── index.html        # modern UI (Lightweight Charts)
+├── tests/                # network-free pytest suite
 ├── assets/               # README images (SVG)
-├── requirements.txt      # pinned dependencies
+├── requirements.txt      # pinned runtime dependencies
+├── requirements-dev.txt  # test dependencies (pytest, httpx)
 └── .env.example          # environment variable template
 ```
 
@@ -192,6 +198,29 @@ enforce a shared rate limit and abuse protection at the API gateway or reverse p
 }
 ```
 
+### `POST /api/compare-strategy`
+
+Runs one strategy across multiple symbols (max 5) and returns them ranked by total return.
+
+**Request:**
+```json
+{ "strateji_metni": "Buy when RSI drops below 35", "semboller": ["THYAO.IS", "ASELS.IS", "GARAN.IS"] }
+```
+
+**Response (excerpt):**
+```json
+{
+  "rule": { "conditions": [ ... ], "action": "BUY" },
+  "results": [
+    { "symbol": "ASELS.IS", "ok": true, "rank": 1, "metrics": { "toplam_kar_zarar_pct": 41.2 } },
+    { "symbol": "THYAO.IS", "ok": true, "rank": 2, "metrics": { "toplam_kar_zarar_pct": 18.7 } },
+    { "symbol": "BADSYM",   "ok": false, "error": "veri bulunamadi" }
+  ]
+}
+```
+
+Failing symbols are isolated (`ok: false`) and sorted last, so one bad ticker never aborts the comparison.
+
 ### `GET /api/health`
 Returns service status and NLP mode (Gemini or local fallback).
 
@@ -206,10 +235,14 @@ Returns service status and NLP mode (Gemini or local fallback).
 | **Alpha (%)** | Strategy return minus buy & hold — does it actually add value? |
 | **Sharpe** | Annualized risk-adjusted return from the equity curve |
 | **Win Rate (%)** | Share of profitable trades |
+| **Profit Factor** | Gross profit ÷ gross loss (`null` when there are no losing trades) |
+| **Avg Win / Loss (%)** | Mean return of winning and losing trades |
 | **Max Drawdown (%)** | Deepest peak-to-trough decline |
+| **Exit reasons** | Breakdown of exits: `signal` / `stop_loss` / `take_profit` / `end_of_data` |
 | **Trades** | Number of completed buy/sell round trips |
 
 > Trades execute at the **next bar's open** after a signal (no look-ahead bias).
+> Optional **stop-loss / take-profit** levels are checked intrabar against the bar's high/low.
 
 ---
 
@@ -217,7 +250,9 @@ Returns service status and NLP mode (Gemini or local fallback).
 
 - [ ] Separate user-defined entry and exit rules
 - [x] Next-bar-open entry (look-ahead correction)
-- [ ] Multi-symbol / multi-strategy comparison
+- [x] Stop-loss / take-profit risk management
+- [x] Multi-symbol / multi-strategy comparison
+- [x] Richer metrics (buy & hold, alpha, Sharpe, profit factor)
 - [x] Unit tests (pytest)
 
 ---
