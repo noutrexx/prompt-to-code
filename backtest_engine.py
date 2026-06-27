@@ -277,10 +277,30 @@ class Backtester:
         drawdown = (eq - running_max) / running_max
         max_drawdown_pct = float(drawdown.min() * 100.0) if len(eq) else 0.0
 
+        # Al-ve-tut kiyaslamasi: ilk gecerli kapanistan son kapanisa pasif getiri.
+        close_series = self.df["Close"].dropna()
+        if len(close_series) >= 2 and close_series.iloc[0] != 0:
+            buy_hold_pct = (close_series.iloc[-1] - close_series.iloc[0]) / close_series.iloc[0] * 100.0
+        else:
+            buy_hold_pct = 0.0
+        # Alpha: strateji getirisinin al-tut'a gore farki (artilik/eksiklik).
+        alpha_pct = total_return_pct - buy_hold_pct
+
+        # Sharpe orani: gunluk portfoy getirilerinden yillik (252 gun) olceklenir.
+        returns = eq.pct_change().dropna()
+        std = float(returns.std())
+        if len(returns) > 1 and std > 0:
+            sharpe = float(returns.mean() / std * np.sqrt(252))
+        else:
+            sharpe = 0.0
+
         return {
             "baslangic_bakiye": round(self.initial_balance, 2),
             "son_bakiye": round(final_equity, 2),
             "toplam_kar_zarar_pct": round(total_return_pct, 2),
+            "al_tut_getiri_pct": round(buy_hold_pct, 2),
+            "strateji_alpha_pct": round(alpha_pct, 2),
+            "sharpe_orani": round(sharpe, 2),
             "win_rate_pct": round(win_rate, 2),
             "max_drawdown_pct": round(max_drawdown_pct, 2),
             "toplam_islem_sayisi": n_trades,
