@@ -147,6 +147,16 @@ python app.py        # or: uvicorn app:app --reload
 
 Open **http://127.0.0.1:8000/** in your browser.
 
+### Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+The suite is network-free (synthetic OHLC data) and covers the backtest engine
+and the API guards.
+
 ---
 
 ## API
@@ -192,9 +202,14 @@ Returns service status and NLP mode (Gemini or local fallback).
 | Metric | Description |
 |--------|-------------|
 | **Total P/L (%)** | 10,000 ₺ start, 0.1% commission per trade |
+| **Buy & Hold (%)** | Passive return over the same period (benchmark) |
+| **Alpha (%)** | Strategy return minus buy & hold — does it actually add value? |
+| **Sharpe** | Annualized risk-adjusted return from the equity curve |
 | **Win Rate (%)** | Share of profitable trades |
 | **Max Drawdown (%)** | Deepest peak-to-trough decline |
 | **Trades** | Number of completed buy/sell round trips |
+
+> Trades execute at the **next bar's open** after a signal (no look-ahead bias).
 
 ---
 
