@@ -30,6 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backtest_engine import Backtester, BacktestError
+from compare_engine import compare_symbols
 from data_engine import MarketDataError, MarketDataFetcher
 from nlp_parser import BISTRuleParser, NLPParserError
 
@@ -50,6 +51,8 @@ _max_body_bytes = int(os.getenv("MAX_REQUEST_BODY_BYTES", "4096"))
 _rate_limit_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "10"))
 _max_concurrent_strategies = int(os.getenv("MAX_CONCURRENT_STRATEGIES", "2"))
 _strategy_slots = threading.BoundedSemaphore(_max_concurrent_strategies)
+# Pahali POST uclari ayni koruma katmaniyla (govde/limit/kapasite) korunur.
+_protected_paths = frozenset({"/api/run-strategy", "/api/compare-strategy"})
 _request_history: dict[str, deque[float]] = defaultdict(deque)
 _request_history_lock = threading.Lock()
 
@@ -82,7 +85,7 @@ def _consume_rate_limit(client_key: str, now: float | None = None) -> bool:
 
 @app.middleware("http")
 async def protect_strategy_endpoint(request: Request, call_next):
-    if request.url.path != "/api/run-strategy" or request.method != "POST":
+    if request.url.path not in _protected_paths or request.method != "POST":
         return await call_next(request)
 
     content_length = request.headers.get("content-length")
@@ -139,6 +142,21 @@ class StrategyRequest(BaseModel):
         min_length=3,
         max_length=500,
         description="Turkce veya Ingilizce strateji cumlesi.",
+    )
+
+
+class CompareRequest(BaseModel):
+    strateji_metni: str = Field(
+        ...,
+        min_length=3,
+        max_length=500,
+        description="Tum sembollere uygulanacak strateji cumlesi.",
+    )
+    semboller: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=5,
+        description="Kiyaslanacak semboller (orn. ['THYAO.IS', 'ASELS.IS']). En fazla 5.",
     )
 
 
@@ -266,6 +284,40 @@ def run_strategy(req: StrategyRequest) -> Dict[str, Any]:
         "sma50": chart["sma50"],
         "sma200": chart["sma200"],
         "equity": _build_equity(bt.equity_curve),  # portfoy degeri egrisi
+    }
+
+
+@app.post("/api/compare-strategy")
+def compare_strategy(req: CompareRequest) -> Dict[str, Any]:
+    """
+    Tek bir strateji metnini birden cok sembolde calistirir ve toplam getiriye
+    gore siralanmis kiyas tablosu dondurur.
+    """
+    text = (req.strateji_metni or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="strateji_metni bos olamaz.")
+
+    # Stratejiyi bir kez kurala cevir; tum sembollere ayni kural uygulanir.
+    try:
+        rule = _parser.parse(text)
+        rule_dict = rule.model_dump(mode="json")
+    except NLPParserError as exc:
+        raise HTTPException(status_code=502, detail=f"NLP hatasi: {exc}")
+
+    symbols = [s.strip().upper() for s in req.semboller if s and s.strip()]
+    if not symbols:
+        raise HTTPException(status_code=422, detail="Gecerli sembol verilmedi.")
+
+    sell_rule = _derive_exit_rule(rule_dict)
+    try:
+        results = compare_symbols(symbols, rule_dict, sell_rule)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    return {
+        "rule": rule_dict,
+        "exit_rule": sell_rule,
+        "results": results,  # [{symbol, ok, rank?, metrics?, error?}], getiriye gore sirali
     }
 
 
