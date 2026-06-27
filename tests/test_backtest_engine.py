@@ -134,6 +134,24 @@ class MetricsTests(unittest.TestCase):
         bt.run()
         self.assertEqual(bt.metrics["sharpe_orani"], 0.0)
 
+    def test_profit_factor_none_when_no_losing_trades(self):
+        # Tek karli islem -> zarar yok -> profit_factor tanimsiz (None)
+        bt = Backtester(_make_df(), BUY_RULE, SELL_RULE)
+        bt.run()
+        self.assertEqual(bt.metrics["toplam_islem_sayisi"], 1)
+        self.assertIsNone(bt.metrics["profit_factor"])
+
+    def test_avg_win_reflects_single_trade(self):
+        bt = Backtester(_make_df(), BUY_RULE, SELL_RULE)
+        bt.run()
+        self.assertEqual(bt.metrics["ort_kazanc_pct"], round(bt.trades[0]["pnl_pct"], 2))
+        self.assertEqual(bt.metrics["ort_kayip_pct"], 0.0)
+
+    def test_exit_reasons_breakdown(self):
+        bt = Backtester(_make_df(), BUY_RULE, SELL_RULE)
+        bt.run()
+        self.assertEqual(bt.metrics["cikis_nedenleri"], {"signal": 1})
+
 
 class StopLossTakeProfitTests(unittest.TestCase):
     """Koruyucu emirler intrabar (High/Low) tetiklenir, fiyat seviyesinden cikar."""
