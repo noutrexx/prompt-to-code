@@ -65,6 +65,8 @@ class Backtester:
         initial_balance: float = 10_000.0,
         commission: float = 0.001,  # %0.1
         execution: str = "next_open",
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
     ) -> None:
         if df is None or df.empty:
             raise BacktestError("Bos veya gecersiz DataFrame.")
@@ -82,6 +84,9 @@ class Backtester:
         # onlemek icin BIR SONRAKI barin acilisinda islem gorur (gercekci).
         # "close": eski davranis — sinyal bariyla ayni kapanistan islem (look-ahead).
         self.execution = execution
+        # Koruyucu emirler: giris fiyatina gore oran (0.05 = %5). None ise kapali.
+        self.stop_loss = self._validate_fraction(stop_loss, "stop_loss")
+        self.take_profit = self._validate_fraction(take_profit, "take_profit")
 
         # Sonuc taşiyicilari
         self.signals: List[Dict[str, Any]] = []   # [{date, side, price}]
@@ -92,6 +97,16 @@ class Backtester:
     # ------------------------------------------------------------------ #
     # Yardimcilar
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def _validate_fraction(value: Optional[float], name: str) -> Optional[float]:
+        """Stop/target oranlarini dogrular: None ya da (0, 1) araliginda olmalidir."""
+        if value is None:
+            return None
+        v = float(value)
+        if not 0.0 < v < 1.0:
+            raise BacktestError(f"{name} 0 ile 1 arasinda bir oran olmalidir (orn. 0.05 = %5).")
+        return v
+
     @staticmethod
     def _as_dict(rule: Union[Dict[str, Any], str]) -> Dict[str, Any]:
         if isinstance(rule, str):
@@ -188,6 +203,10 @@ class Backtester:
 
         close = self.df["Close"].to_numpy()            # mark-to-market icin
         exec_prices = self.df[exec_src].to_numpy()      # islem gerceklestirme fiyati
+        # Stop/target intrabar tetiklenir: bar ici en dusuk/en yuksek fiyat kullanilir.
+        # OHLC yoksa kapanis fiyatina geri dusulur.
+        high_arr = self.df["High"].to_numpy() if "High" in self.df.columns else close
+        low_arr = self.df["Low"].to_numpy() if "Low" in self.df.columns else close
         dates = self.df.index
         buy_arr = buy_signals.to_numpy()
         sell_arr = sell_signals.to_numpy()
@@ -196,6 +215,8 @@ class Backtester:
         shares = 0.0
         in_position = False
         entry_price = 0.0
+        stop_level = 0.0      # giriste hesaplanir; stop_loss kapali ise kullanilmaz
+        target_level = 0.0    # giriste hesaplanir; take_profit kapali ise kullanilmaz
         equity = np.empty(len(close), dtype=float)
 
         self.signals.clear()
@@ -205,26 +226,41 @@ class Backtester:
             exec_price = exec_prices[i]   # alis/satis bu fiyattan gerceklesir
             mtm_price = close[i]          # portfoy degeri kapanistan isaretlenir
 
-            # Once cikis (satis), sonra giris (alis) — ayni bar iki islem olmaz
-            if in_position and sell_arr[i]:
-                cash = shares * exec_price * (1.0 - self.commission)
-                pnl_pct = (exec_price - entry_price) / entry_price * 100.0
-                self.trades.append({
-                    "entry_price": round(entry_price, 4),
-                    "exit_price": round(float(exec_price), 4),
-                    "pnl_pct": round(pnl_pct, 4),
-                })
-                self.signals.append({
-                    "date": self._fmt_date(dates[i]),
-                    "side": "SELL",
-                    "price": round(float(exec_price), 4),
-                })
-                shares = 0.0
-                in_position = False
+            # Once cikis, sonra giris — ayni bar iki islem olmaz.
+            if in_position:
+                exit_price = None
+                reason = None
+                # Oncelik: koruyucu emirler (intrabar), sonra kural tabanli satis.
+                # Ayni bar hem stop hem target gorunurse temkinli olup stop'u sayariz.
+                if self.stop_loss is not None and low_arr[i] <= stop_level:
+                    exit_price, reason = stop_level, "stop_loss"
+                elif self.take_profit is not None and high_arr[i] >= target_level:
+                    exit_price, reason = target_level, "take_profit"
+                elif sell_arr[i]:
+                    exit_price, reason = exec_price, "signal"
 
-            elif (not in_position) and buy_arr[i]:
+                if exit_price is not None:
+                    cash = shares * exit_price * (1.0 - self.commission)
+                    pnl_pct = (exit_price - entry_price) / entry_price * 100.0
+                    self.trades.append({
+                        "entry_price": round(entry_price, 4),
+                        "exit_price": round(float(exit_price), 4),
+                        "pnl_pct": round(pnl_pct, 4),
+                        "reason": reason,
+                    })
+                    self.signals.append({
+                        "date": self._fmt_date(dates[i]),
+                        "side": "SELL",
+                        "price": round(float(exit_price), 4),
+                    })
+                    shares = 0.0
+                    in_position = False
+
+            elif buy_arr[i]:
                 shares = (cash * (1.0 - self.commission)) / exec_price
                 entry_price = exec_price
+                stop_level = entry_price * (1.0 - self.stop_loss) if self.stop_loss else 0.0
+                target_level = entry_price * (1.0 + self.take_profit) if self.take_profit else 0.0
                 cash = 0.0
                 in_position = True
                 self.signals.append({
@@ -245,6 +281,7 @@ class Backtester:
                 "entry_price": round(entry_price, 4),
                 "exit_price": round(float(last_price), 4),
                 "pnl_pct": round(pnl_pct, 4),
+                "reason": "end_of_data",
                 "note": "acik pozisyon son barda kapatildi",
             })
             self.signals.append({
