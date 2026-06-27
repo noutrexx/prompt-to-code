@@ -65,5 +65,50 @@ class ApiGuardTests(unittest.TestCase):
         self.assertEqual(response.json()["detail"], "strategy_capacity_exceeded")
 
 
+class CompareEndpointTests(unittest.TestCase):
+    def setUp(self):
+        app._request_history.clear()
+        self.client = TestClient(app.app)
+
+    def test_too_many_symbols_rejected(self):
+        # Pydantic max_length=5 dogrulamasi (ag cagrisi yapilmadan)
+        response = self.client.post(
+            "/api/compare-strategy",
+            json={"strateji_metni": "RSI 30 altinda al", "semboller": ["A", "B", "C", "D", "E", "F"]},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_empty_symbols_rejected(self):
+        response = self.client.post(
+            "/api/compare-strategy",
+            json={"strateji_metni": "RSI 30 altinda al", "semboller": []},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_compare_is_rate_limited(self):
+        # Korumali yollar arasinda; limit asilinca 429 doner.
+        with patch.object(app, "_rate_limit_per_minute", 1):
+            first = self.client.post("/api/compare-strategy", json={})
+            second = self.client.post("/api/compare-strategy", json={})
+        # Ilk istek govde dogrulamasinda (422) takilir ama limiti tuketir; ikinci 429.
+        self.assertEqual(second.status_code, 429)
+
+    def test_compare_happy_path_returns_ranked_results(self):
+        fake_rule = type("R", (), {"model_dump": lambda self, mode=None: {"conditions": [], "action": "BUY"}})()
+        ranked = [{"symbol": "AAA", "ok": True, "rank": 1, "metrics": {"toplam_kar_zarar_pct": 10.0}}]
+        with patch.object(app._parser, "parse", return_value=fake_rule), \
+             patch.object(app, "compare_symbols", return_value=ranked) as mocked:
+            response = self.client.post(
+                "/api/compare-strategy",
+                json={"strateji_metni": "RSI 30 altinda al", "semboller": ["aaa"]},
+            )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["results"], ranked)
+        # Sembol normalize edilerek (uppercase) compare_symbols'a iletilmeli
+        called_symbols = mocked.call_args.args[0]
+        self.assertEqual(called_symbols, ["AAA"])
+
+
 if __name__ == "__main__":
     unittest.main()
