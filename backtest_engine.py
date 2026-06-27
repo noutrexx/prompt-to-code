@@ -305,8 +305,27 @@ class Backtester:
         total_return_pct = (final_equity - self.initial_balance) / self.initial_balance * 100.0
 
         n_trades = len(self.trades)
-        wins = sum(1 for t in self.trades if t["pnl_pct"] > 0)
+        win_pnls = [t["pnl_pct"] for t in self.trades if t["pnl_pct"] > 0]
+        loss_pnls = [t["pnl_pct"] for t in self.trades if t["pnl_pct"] < 0]
+        wins = len(win_pnls)
         win_rate = (wins / n_trades * 100.0) if n_trades > 0 else 0.0
+
+        # Ortalama kazanc/kayip ve profit factor (kar/zarar buyukluk orani).
+        avg_win = (sum(win_pnls) / len(win_pnls)) if win_pnls else 0.0
+        avg_loss = (sum(loss_pnls) / len(loss_pnls)) if loss_pnls else 0.0
+        gross_profit = sum(win_pnls)
+        gross_loss = abs(sum(loss_pnls))
+        if gross_loss > 0:
+            profit_factor: Optional[float] = round(gross_profit / gross_loss, 2)
+        else:
+            # Zarar eden islem yoksa oran tanimsiz; None ile isaretlenir.
+            profit_factor = None
+
+        # Cikis nedenlerinin dagilimi (stop_loss/take_profit/signal/end_of_data).
+        exit_reasons: Dict[str, int] = {}
+        for t in self.trades:
+            r = t.get("reason", "signal")
+            exit_reasons[r] = exit_reasons.get(r, 0) + 1
 
         # Maksimum dusus (peak-to-trough)
         eq = self.equity_curve
@@ -339,9 +358,13 @@ class Backtester:
             "strateji_alpha_pct": round(alpha_pct, 2),
             "sharpe_orani": round(sharpe, 2),
             "win_rate_pct": round(win_rate, 2),
+            "profit_factor": profit_factor,
+            "ort_kazanc_pct": round(avg_win, 2),
+            "ort_kayip_pct": round(avg_loss, 2),
             "max_drawdown_pct": round(max_drawdown_pct, 2),
             "toplam_islem_sayisi": n_trades,
             "toplam_sinyal_sayisi": len(self.signals),
+            "cikis_nedenleri": exit_reasons,
         }
 
     # ------------------------------------------------------------------ #
